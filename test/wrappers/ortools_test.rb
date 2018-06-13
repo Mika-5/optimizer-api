@@ -1936,6 +1936,138 @@ class Wrappers::OrtoolsTest < Minitest::Test
     assert_equal problem[:services].size , result[:routes][0][:activities].size
   end
 
+  def test_timewindows_intersection
+    ortools = OptimizerWrapper::ORTOOLS
+    problem = {
+      matrices: [{
+        id: 'matrix_0',
+        time: [
+          [0, 2],
+          [2, 0],
+        ]
+      }],
+      units: [{
+        id: 'unit_0',
+      }],
+      points: [{
+        id: 'point_0',
+        matrix_index: 0
+      }, {
+        id: 'point_1',
+        matrix_index: 1
+      }],
+      vehicles: [{
+        id: 'vehicle_0',
+        start_point_id: 'point_0',
+        end_point_id: 'point_0',
+        matrix_id: 'matrix_0',
+        capacities: [{
+          unit_id: 'unit_0',
+          limit: 10,
+          overload_multiplier: 0,
+        }]
+      }],
+      services: [{
+        id: 'service_1',
+        quantities: [{
+          unit_id: 'unit_0',
+          value: 8,
+        }],
+        activity: {
+          point_id: 'point_1',
+          duration: 2,
+          timewindows: [{
+            start: 0,
+            end: 5
+          },{
+            start: 5,
+            end: 10
+          },{
+            start: 8,
+            end: 16
+          }],
+          late_multiplier: 1,
+        }
+      }],
+      configuration: {
+        resolution: {
+          duration: 10
+        },
+        restitution: {
+          intermediate_solutions: false,
+        }
+      }
+    }
+    vrp = Models::Vrp.create(problem)
+    assert !ortools.assert_services_no_timewindows_overlap(vrp)
+    result = ortools.solve(vrp, 'test')
+  end
+
+  def test_no_timewindows_intersection
+    ortools = OptimizerWrapper::ORTOOLS
+    problem = {
+      matrices: [{
+        id: 'matrix_0',
+        time: [
+          [0, 2],
+          [2, 0],
+        ]
+      }],
+      units: [{
+        id: 'unit_0',
+      }],
+      points: [{
+        id: 'point_0',
+        matrix_index: 0
+      }, {
+        id: 'point_1',
+        matrix_index: 1
+      }],
+      vehicles: [{
+        id: 'vehicle_0',
+        start_point_id: 'point_0',
+        end_point_id: 'point_0',
+        matrix_id: 'matrix_0',
+        capacities: [{
+          unit_id: 'unit_0',
+          limit: 10,
+          overload_multiplier: 0,
+        }]
+      }],
+      services: [{
+        id: 'service_1',
+        quantities: [{
+          unit_id: 'unit_0',
+          value: 8,
+        }],
+        activity: {
+          point_id: 'point_1',
+          duration: 2,
+          timewindows: [{
+            start: 0,
+            end: 5
+          },
+          {
+            start: 6,
+            end: 10
+          }],
+          late_multiplier: 1,
+        }
+      }],
+      configuration: {
+        resolution: {
+          duration: 10
+        },
+        restitution: {
+          intermediate_solutions: false,
+        }
+      }
+    }
+    vrp = Models::Vrp.create(problem)
+    assert ortools.assert_services_no_timewindows_overlap(vrp)
+    result = ortools.solve(vrp, 'test')
+  end
+
   def test_nearby_specific_ordder
     ortools = OptimizerWrapper::ORTOOLS
     problem = {

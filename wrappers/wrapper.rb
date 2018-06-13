@@ -131,6 +131,21 @@ module Wrappers
       }
     end
 
+    def assert_services_no_timewindows_overlap(vrp)
+      vrp.services.none?{ |service|
+        range = nil
+        day_shift = 0
+        if service.activity && service.activity.timewindows && service.activity.timewindows.size > 1
+          service.activity.timewindows.all?{ |tw|
+            day_shift = 24 * 3600 * (tw.day_index || 0)
+            result = range.nil? || range.overlaps?((day_shift + tw.start)..(day_shift + tw.end))
+            range = Range.new((range && range.begin) || (day_shift + tw.start) || 0, (day_shift + tw.end) || 2**56)
+            result
+          }
+        end
+      }
+    end
+
     def assert_services_no_priority(vrp)
       vrp.services.empty? || vrp.services.all?{ |service|
         service.priority == 4

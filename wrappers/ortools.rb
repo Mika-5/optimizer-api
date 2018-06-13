@@ -46,6 +46,7 @@ module Wrappers
         :assert_points_same_definition,
         :assert_vehicles_no_zero_duration,
         :assert_at_least_one_mission,
+        :assert_services_no_timewindows_overlap,
         :assert_range_date_if_month_duration,
         :assert_correctness_provided_matrix_indices,
         :assert_square_matrix,
