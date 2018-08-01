@@ -23,6 +23,7 @@ require './wrappers/vroom'
 require './wrappers/jsprit'
 require './wrappers/ortools'
 require './wrappers/cplex'
+require './wrappers/localsolver'
 
 require './lib/cache_manager'
 
@@ -33,9 +34,10 @@ module OptimizerWrapper
   VROOM = Wrappers::Vroom.new(CACHE)
   JSPRIT = Wrappers::Jsprit.new(CACHE)
   CPLEX = Wrappers::Cplex.new(CACHE)
+  LOCALSOLVER = Wrappers::Localsolver.new(CACHE)
   # if dependencies don't exist (libprotobuf10 on debian) provide or-tools dependencies location
   ORTOOLS = Wrappers::Ortools.new(CACHE, exec_ortools: 'LD_LIBRARY_PATH=../or-tools/dependencies/install/lib/:../or-tools/lib/ ../optimizer-ortools/tsp_simple')
-
+  
   @@dump_vrp_cache = CacheManager.new(ActiveSupport::Cache::NullStore.new)
 
   @@c = {
@@ -47,6 +49,7 @@ module OptimizerWrapper
       vroom: VROOM,
       jsprit: JSPRIT,
       ortools: ORTOOLS,
+      localsolver: LOCALSOLVER,
     },
     profiles: [{
       api_keys: ['demo'],
