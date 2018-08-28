@@ -107,6 +107,14 @@ module Wrappers
       }
     end
 
+    def assert_no_pickup_timewindows_after_delivery_timewindows(vrp)
+      vrp.shipments.empty? || vrp.shipments.none? { |shipment|
+        first_open = shipment.pickup.timewindows.sort_by{ |s| s[:start]}.first
+        last_close = shipment.delivery.timewindows.sort_by{ |s| s[:start]}.last
+        (first_open ? first_open.start : 0) + 86400 * (first_open && first_open.day_index ? first_open.day_index : 0) > (last_close ? last_close.start : 0) + 86400 * (last_close && last_close.day_index ? last_close.day_index : 0)
+      }
+    end
+
     def assert_services_no_skills(vrp)
       vrp.services.empty? || vrp.services.none?{ |service|
         !service.skills.empty?

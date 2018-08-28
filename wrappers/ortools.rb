@@ -68,7 +68,8 @@ module Wrappers
         :assert_no_service_exclusion_cost_if_heuristic,
         :assert_no_vehicle_limit_if_heuristic,
         :assert_no_same_point_day_if_no_heuristic,
-        :assert_no_allow_partial_if_no_heuristic
+        :assert_no_allow_partial_if_no_heuristic,
+        :assert_no_pickup_timewindows_after_delivery_timewindows,
       ]
     end
 
