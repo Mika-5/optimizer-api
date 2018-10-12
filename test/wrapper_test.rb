@@ -16,634 +16,172 @@
 # <http://www.gnu.org/licenses/agpl.html>
 #
 require './test/test_helper'
+require './test/factory/factory_model_test.rb'
 
 class WrapperTest < Minitest::Test
 
+  def matriceInit
+    return [[ 0,  1,  1, 10,  0],[ 1,  0,  1, 10,  1],[ 1,  1,  0, 10,  1],[10, 10, 10,  0, 10],[ 0,  1,  1, 10,  0]]
+  end
+
   def test_zip_cluster
+    FactoryBot.rewind_sequences
     size = 5
-    problem = {
-      matrices: [{
-        id: 'matrix_0',
-        time: [
-          [ 0,  1,  1, 10,  0],
-          [ 1,  0,  1, 10,  1],
-          [ 1,  1,  0, 10,  1],
-          [10, 10, 10,  0, 10],
-          [ 0,  1,  1, 10,  0]
-        ],
-        distance: [
-          [ 0,  1,  1, 10,  0],
-          [ 1,  0,  1, 10,  1],
-          [ 1,  1,  0, 10,  1],
-          [10, 10, 10,  0, 10],
-          [ 0,  1,  1, 10,  0]
-        ]
-      }],
-      points: (0..(size - 1)).collect{ |i|
-        {
-          id: "point_#{i}",
-          matrix_index: i
-        }
-      },
-      rests: [{
-        id: 'rest_0',
-        timewindows: [{
-          start: 1,
-          end: 1
-        }],
-        duration: 1
-      }],
-      vehicles: [{
-        id: 'vehicle_0',
-        start_point_id: 'point_0',
-        matrix_id: 'matrix_0',
-        rest_ids: ['rest_0']
-      }],
-      services: (1..(size - 1)).collect{ |i|
-        {
-          id: "service_#{i}",
-          activity: {
-            point_id: "point_#{i}",
-            timewindows: [{
-              start: 1,
-              end: 2
-            }]
-          },
-          skills: ['A']
-        }
-      },
-      configuration: {
-        preprocessing: {
-          cluster_threshold: 5
-        },
-        resolution: {
-          duration: 10
-        }
-      }
-    }
+    problem = attributes_for(:problem, matrice: 0, point: size, unit: 0, vehicle: 0, service: 0)
+    problem[:matrices] = [attributes_for(:matrice, time: matriceInit, distance: matriceInit)]
+    problem[:rests] = [attributes_for(:rest, timewindows: [{start: 1, end: 1}])]
+    problem[:vehicles] = [attributes_for(:vehicle, rest_ids: 'rest_0')]
+    problem[:services] = attributes_for_list(:service, size-1, timewindows: [{start: 1, end: 2}], skills: ['A'])
+    problem[:configuration] = attributes_for(:configuration, duration: 10, cluster_threshold: 5)
+
     assert_equal 2, OptimizerWrapper.send(:zip_cluster, Models::Vrp.create(problem), 5, false).size # without start/end/rest
   end
 
   def test_no_zip_cluster
+    FactoryBot.rewind_sequences
     size = 5
-    problem = {
-      matrices: [{
-        id: 'matrix_0',
-        time: [
-          [ 0, 10, 20, 30,  0],
-          [10,  0, 30, 40, 10],
-          [20, 30,  0, 50, 20],
-          [30, 40, 50,  0, 30],
-          [ 0, 10, 20, 30,  0]
-        ],
-        distance: [
-          [ 0, 10, 20, 30,  0],
-          [10,  0, 30, 40, 10],
-          [20, 30,  0, 50, 20],
-          [30, 40, 50,  0, 30],
-          [ 0, 10, 20, 30,  0]
-        ]
-      }],
-      points: (0..(size - 1)).collect{ |i|
-        {
-          id: "point_#{i}",
-          matrix_index: i
-        }
-      },
-      vehicles: [{
-        id: 'vehicle_0',
-        start_point_id: 'point_0',
-        matrix_id: 'matrix_0'
-      }],
-      services: (1..(size - 1)).collect{ |i|
-        {
-          id: "service_#{i}",
-          activity: {
-            point_id: "point_#{i}"
-          }
-        }
-      },
-      configuration: {
-        preprocessing: {
-          cluster_threshold: 5
-        },
-        resolution: {
-          duration: 10
-        }
-      }
-    }
+    problem = attributes_for(:problem, matrice: 0, point: size, unit: 0, vehicle: 1, service: size-1)
+    problem[:matrices] = [{id: 'matrix_0', time: [
+                                                  [ 0, 10, 20, 30,  0],
+                                                  [10,  0, 30, 40, 10],
+                                                  [20, 30,  0, 50, 20],
+                                                  [30, 40, 50,  0, 30],
+                                                  [ 0, 10, 20, 30,  0]
+                                                ],
+                                      distance: [
+                                                  [ 0, 10, 20, 30,  0],
+                                                  [10,  0, 30, 40, 10],
+                                                  [20, 30,  0, 50, 20],
+                                                  [30, 40, 50,  0, 30],
+                                                  [ 0, 10, 20, 30,  0]
+                                                ]}]
+    problem[:configuration] = attributes_for(:configuration, duration: 10, cluster_threshold: 5)
+
     assert_equal 4, OptimizerWrapper.send(:zip_cluster, Models::Vrp.create(problem), 5, false).size # without start/end/rest
   end
 
   def test_no_zip_cluster_tws
+    FactoryBot.rewind_sequences
     size = 5
-    problem = {
-      matrices: [{
-        id: 'matrix_0',
-        time: [
-          [ 0,  1,  1, 10,  0],
-          [ 1,  0,  1, 10,  1],
-          [ 1,  1,  0, 10,  1],
-          [10, 10, 10,  0, 10],
-          [ 0,  1,  1, 10,  0]
-        ],
-        distance: [
-          [ 0,  1,  1, 10,  0],
-          [ 1,  0,  1, 10,  1],
-          [ 1,  1,  0, 10,  1],
-          [10, 10, 10,  0, 10],
-          [ 0,  1,  1, 10,  0]
-        ]
-      }],
-      points: (0..(size - 1)).collect{ |i|
-        {
-          id: "point_#{i}",
-          matrix_index: i
-        }
-      },
-      rests: [{
-        id: 'rest_0',
-        timewindows: [{
-          start: 1,
-          end: 1
-        }],
-        duration: 1
-      }],
-      vehicles: [{
-        id: 'vehicle_0',
-        start_point_id: 'point_0',
-        matrix_id: 'matrix_0',
-        rest_ids: ['rest_0']
-      }],
-      services: (1..(size - 1)).collect{ |i|
-        {
-          id: "service_#{i}",
-          activity: {
-            point_id: "point_#{i}",
-            timewindows: [{
-              start: i*10,
-              end: i*10+1
-            }],
-            duration: 1
-          }
-        }
-      },
-      configuration: {
-        preprocessing: {
-          cluster_threshold: 5
-        },
-        resolution: {
-          duration: 10
-        }
-      }
-    }
+    problem = attributes_for(:problem, matrice: 0, point: size, unit: 0, vehicle: 0, service: 0)
+    problem[:matrices] = [attributes_for(:matrice, time: matriceInit, distance: matriceInit)]
+    problem[:rests] = [attributes_for(:rest, timewindows: [{start: 1, end: 1}])]
+    problem[:vehicles] = [attributes_for(:vehicle, rest_ids: 'rest_0')]
+    problem[:services] = (1..size-1).collect{ |i|
+                            attributes_for(:service, duration: 1, timewindows: [{start: 10*i, end: 10*i+1}])
+                         }
+    problem[:configuration] = attributes_for(:configuration, duration: 10, cluster_threshold: 5)                     
+
     assert_equal 4, OptimizerWrapper.send(:zip_cluster, Models::Vrp.create(problem), 5, false).size # without start/end/rest
   end
 
   def test_force_zip_cluster_with_quantities
+    FactoryBot.rewind_sequences
     size = 5
-    problem = {
-      matrices: [{
-        id: 'matrix_0',
-        time: [
-          [ 0,  1,  1, 10,  0],
-          [ 1,  0,  1, 10,  1],
-          [ 1,  1,  0, 10,  1],
-          [10, 10, 10,  0, 10],
-          [ 0,  1,  1, 10,  0]
-        ],
-        distance: [
-          [ 0,  1,  1, 10,  0],
-          [ 1,  0,  1, 10,  1],
-          [ 1,  1,  0, 10,  1],
-          [10, 10, 10,  0, 10],
-          [ 0,  1,  1, 10,  0]
-        ]
-      }],
-      units: [{
-          id: "unit0",
-          label: "kg"
-      }, {
-          id: "unit1",
-          label: "kg"
-      }, {
-          id: "unit2",
-          label: "kg"
-      }],
-      points: (0..(size - 1)).collect{ |i|
-        {
-          id: "point_#{i}",
-          matrix_index: i
-        }
-      },
-      vehicles: [{
-        id: 'vehicle_0',
-        start_point_id: 'point_0',
-        matrix_id: 'matrix_0',
-        capacities: [{
-          unit_id: "unit0",
-          limit: 5
-        },{
-          unit_id: "unit1",
-          limit: 5
-        },{
-          unit_id: "unit2",
-          limit: 5
-        }]
-      }],
-      services: (1..(size - 1)).collect{ |i|
-        {
-          id: "service_#{i}",
-          quantities: [{
-            unit_id: "unit#{i%3}",
-            value: 1
-          }],
-          activity: {
-            point_id: "point_#{i}"
-          }
-        }
-      },
-      configuration: {
-        preprocessing: {
-          cluster_threshold: 5
-        },
-        resolution: {
-          duration: 10
-        }
-      }
-    }
+    problem = attributes_for(:problem, matrice: 0, point: size, unit: 3, vehicle: 0, service: 0)
+    problem[:matrices] = [attributes_for(:matrice, time: matriceInit, distance: matriceInit)]
+    problem[:vehicles] = [attributes_for(:vehicle_with_capacities, limit1: 5, limit2: 5, limit3: 5)]
+    problem[:services] = (1..size-1).collect{ |i|
+                           attributes_for(:service, quantities: [unit_id: "unit_#{i%3}", value: 1])
+                         }
+    problem[:configuration] = attributes_for(:configuration, duration: 10, cluster_threshold: 5)
+
     assert_equal 2, OptimizerWrapper.send(:zip_cluster, Models::Vrp.create(problem), 5, true).size
   end
 
   def test_force_zip_cluster_with_timewindows
+    FactoryBot.rewind_sequences
     size = 5
-    problem = {
-      matrices: [{
-        id: 'matrix_0',
-        time: [
-          [ 0,  1,  1, 10,  0],
-          [ 1,  0,  1, 10,  1],
-          [ 1,  1,  0, 10,  1],
-          [10, 10, 10,  0, 10],
-          [ 0,  1,  1, 10,  0]
-        ],
-        distance: [
-          [ 0,  1,  1, 10,  0],
-          [ 1,  0,  1, 10,  1],
-          [ 1,  1,  0, 10,  1],
-          [10, 10, 10,  0, 10],
-          [ 0,  1,  1, 10,  0]
-        ]
-      }],
-      points: (0..(size - 1)).collect{ |i|
-        {
-          id: "point_#{i}",
-          matrix_index: i
-        }
-      },
-      vehicles: [{
-        id: 'vehicle_0',
-        start_point_id: 'point_0',
-        matrix_id: 'matrix_0'
-      }],
-      services: (1..(size - 1)).collect{ |i|
-        {
-          id: "service_#{i}",
-          activity: {
-            point_id: "point_#{i}",
-            timewindows: [{
-              start: i*10,
-              end: i*10 + 10
-            }]
-          }
-        }
-      },
-      configuration: {
-        preprocessing: {
-          cluster_threshold: 5
-        },
-        resolution: {
-          duration: 10
-        }
-      }
-    }
+    problem = attributes_for(:problem, matrice: 0, point: size, unit: 0, vehicle: 1, service: 0)
+    problem[:matrices] = [attributes_for(:matrice, time: matriceInit, distance: matriceInit)]
+    problem[:services] = (1..size-1).collect{ |i|
+                            attributes_for(:service, timewindows: [{start: 10*i, end: 10*i+10}])
+                         }
+    problem[:configuration] = attributes_for(:configuration, duration: 10, cluster_threshold: 5)
+
     assert_equal 3, OptimizerWrapper.send(:zip_cluster, Models::Vrp.create(problem), 5, true).size
   end
 
   def test_zip_cluster_with_timewindows
+    FactoryBot.rewind_sequences
     size = 5
-    problem = {
-      matrices: [{
-        id: 'matrix_0',
-        time: [
-          [ 0,  1,  1, 10,  0],
-          [ 1,  0,  1, 10,  1],
-          [ 1,  1,  0, 10,  1],
-          [10, 10, 10,  0, 10],
-          [ 0,  1,  1, 10,  0]
-        ],
-        distance: [
-          [ 0,  1,  1, 10,  0],
-          [ 1,  0,  1, 10,  1],
-          [ 1,  1,  0, 10,  1],
-          [10, 10, 10,  0, 10],
-          [ 0,  1,  1, 10,  0]
-        ]
-      }],
-      points: (0..(size - 1)).collect{ |i|
-        {
-          id: "point_#{i}",
-          matrix_index: i
-        }
-      },
-      vehicles: [{
-        id: 'vehicle_0',
-        start_point_id: 'point_0',
-        matrix_id: 'matrix_0'
-      }],
-      services: (1..(size - 1)).collect{ |i|
-        {
-          id: "service_#{i}",
-          activity: {
-            point_id: "point_#{i}",
-            timewindows: [{
-              start: i*10,
-              end: i*10 + 10
-            }]
-          }
-        }
-      },
-      configuration: {
-        preprocessing: {
-          cluster_threshold: 5
-        },
-        resolution: {
-          duration: 10
-        }
-      }
-    }
+    problem = attributes_for(:problem, matrice: 0, point: size, unit: 0, vehicle: 1, service: 0)
+    problem[:matrices] = [attributes_for(:matrice, time: matriceInit, distance: matriceInit)]
+    problem[:services] = (1..size-1).collect{ |i|
+                            attributes_for(:service, timewindows: [{start: 10*i, end: 10*i+10}])
+                         }
+    problem[:configuration] = attributes_for(:configuration, duration: 10, cluster_threshold: 5)
+
     assert_equal 4, OptimizerWrapper.send(:zip_cluster, Models::Vrp.create(problem), 5, false).size
   end
 
   def test_zip_cluster_with_multiple_vehicles_and_duration
+    FactoryBot.rewind_sequences
     size = 5
-    problem = {
-      matrices: [{
-        id: 'matrix_0',
-        time: [
-          [ 0,  1,  1, 10,  0],
-          [ 1,  0,  1, 10,  1],
-          [ 1,  1,  0, 10,  1],
-          [10, 10, 10,  0, 10],
-          [ 0,  1,  1, 10,  0]
-        ],
-        distance: [
-          [ 0,  1,  1, 10,  0],
-          [ 1,  0,  1, 10,  1],
-          [ 1,  1,  0, 10,  1],
-          [10, 10, 10,  0, 10],
-          [ 0,  1,  1, 10,  0]
-        ]
-      }],
-      points: (0..(size - 1)).collect{ |i|
-        {
-          id: "point_#{i}",
-          matrix_index: i
-        }
-      },
-      vehicles: [{
-        id: 'vehicle_0',
-        start_point_id: 'point_0',
-        matrix_id: 'matrix_0'
-      }, {
-        id: 'vehicle_1',
-        start_point_id: 'point_0',
-        matrix_id: 'matrix_0'
-      }],
-      services: (1..(size - 1)).collect{ |i|
-        {
-          id: "service_#{i}",
-          activity: {
-            point_id: "point_#{i}",
-            duration: 1
-          }
-        }
-      },
-      configuration: {
-        preprocessing: {
-          cluster_threshold: 5
-        },
-        resolution: {
-          duration: 10
-        }
-      }
-    }
+    problem = attributes_for(:problem, matrice: 0, point: size, unit: 0, vehicle: 2, service: 0)
+    problem[:matrices] = [attributes_for(:matrice, time: matriceInit, distance: matriceInit)]
+    problem[:services] = attributes_for_list(:service, size-1, duration: 1)
+    problem[:configuration] = attributes_for(:configuration, duration: 10, cluster_threshold: 5)
+
     assert_equal 4, OptimizerWrapper.send(:zip_cluster, Models::Vrp.create(problem), 5, false).size
   end
 
   def test_zip_cluster_with_multiple_vehicles_without_duration
+    FactoryBot.rewind_sequences
     size = 5
-    problem = {
-      matrices: [{
-        id: 'matrix_0',
-        time: [
-          [ 0,  1,  1, 10,  0],
-          [ 1,  0,  1, 10,  1],
-          [ 1,  1,  0, 10,  1],
-          [10, 10, 10,  0, 10],
-          [ 0,  1,  1, 10,  0]
-        ],
-        distance: [
-          [ 0,  1,  1, 10,  0],
-          [ 1,  0,  1, 10,  1],
-          [ 1,  1,  0, 10,  1],
-          [10, 10, 10,  0, 10],
-          [ 0,  1,  1, 10,  0]
-        ]
-      }],
-      points: (0..(size - 1)).collect{ |i|
-        {
-          id: "point_#{i}",
-          matrix_index: i
-        }
-      },
-      vehicles: [{
-        id: 'vehicle_0',
-        start_point_id: 'point_0',
-        matrix_id: 'matrix_0'
-      }, {
-        id: 'vehicle_1',
-        start_point_id: 'point_0',
-        matrix_id: 'matrix_0'
-      }],
-      services: (1..(size - 1)).collect{ |i|
-        {
-          id: "service_#{i}",
-          activity: {
-            point_id: "point_#{i}"
-          }
-        }
-      },
-      configuration: {
-        preprocessing: {
-          cluster_threshold: 5
-        },
-        resolution: {
-          duration: 10
-        }
-      }
-    }
+    problem = attributes_for(:problem, matrice: 0, point: size, unit: 0, vehicle: 2, service: size-1)
+    problem[:matrices] = [attributes_for(:matrice, time: matriceInit, distance: matriceInit)]
+    problem[:configuration] = attributes_for(:configuration, duration: 10, cluster_threshold: 5)
+
     assert_equal 2, OptimizerWrapper.send(:zip_cluster, Models::Vrp.create(problem), 5, false).size
   end
 
   def test_zip_cluster_with_real_matrix
+    FactoryBot.rewind_sequences
     size = 6
-    problem = {
-      matrices: [{
-        id: 'matrix_0',
-        time: [
-          [0, 693, 655, 1948, 693, 0],
-          [609, 0, 416, 2070, 0, 609],
-          [603, 489, 0, 1692, 489, 603],
-          [1861, 1933, 1636, 0, 1933, 1861],
-          [609, 0, 416, 2070, 0, 609],
-          [0, 693, 655, 1948, 693, 0]
-        ]
-      }],
-      points: (0..(size - 1)).collect{ |i|
-        {
-          id: "point_#{i}",
-          matrix_index: i
-        }
-      },
-      vehicles: [{
-        id: 'vehicle_0',
-        start_point_id: 'point_0',
-        end_point_id: 'point_' + (size - 1).to_s,
-        matrix_id: 'matrix_0'
-      }],
-      services: (1..(size - 2)).collect{ |i|
-        {
-          id: "service_#{i}",
-          activity: {
-            point_id: "point_#{i}",
-            timewindows: [{
-              start: 1,
-              end: 2
-            }],
-            duration: 0
-          },
-          skills: ['A']
-        }
-      },
-      configuration: {
-        preprocessing: {
-          cluster_threshold: 5
-        },
-        resolution: {
-          duration: 10
-        }
-      }
-    }
+    problem = attributes_for(:problem, matrice: 0, point: size, unit: 0, vehicle: 0, service: 0)
+    problem[:matrices] = [attributes_for(:matrice, time: [
+                                                          [0, 693, 655, 1948, 693, 0],
+                                                          [609, 0, 416, 2070, 0, 609],
+                                                          [603, 489, 0, 1692, 489, 603],
+                                                          [1861, 1933, 1636, 0, 1933, 1861],
+                                                          [609, 0, 416, 2070, 0, 609],
+                                                          [0, 693, 655, 1948, 693, 0]
+                                                         ])]
+    problem[:vehicles] = [attributes_for(:vehicle, end_point_id: "point_#{size - 1}")]
+    problem[:services] = attributes_for_list(:service, size-2, skills: ['A'], timewindows: [{start: 1, end: 2}])
+    problem[:configuration] = attributes_for(:configuration, duration: 10, cluster_threshold: 5)
+
     assert_equal 3, OptimizerWrapper.send(:zip_cluster, Models::Vrp.create(problem), 5, false).size # without start/end/rest
   end
 
   def test_no_zip_cluster_with_real_matrix
+    FactoryBot.rewind_sequences
     size = 6
-    problem = {
-      matrices: [{
-        id: 'matrix_0',
-        time: [
-          [0, 655, 1948, 5231, 2971, 0],
-          [603, 0, 1692, 4977, 2715, 603],
-          [1861, 1636, 0, 6143, 1532, 1861],
-          [5184, 4951, 6221, 0, 7244, 5184],
-          [2982, 2758, 1652, 7264, 0, 2982],
-          [0, 655, 1948, 5231, 2971, 0]
-        ]
-      }],
-      points: (0..(size - 1)).collect{ |i|
-        {
-          id: "point_#{i}",
-          matrix_index: i
-        }
-      },
-      vehicles: [{
-        id: 'vehicle_0',
-        start_point_id: 'point_0',
-        end_point_id: 'point_' + (size - 1).to_s,
-        matrix_id: 'matrix_0'
-      }],
-      services: (1..(size - 2)).collect{ |i|
-        {
-          id: "service_#{i}",
-          activity: {
-            point_id: "point_#{i}"
-          }
-        }
-      },
-      configuration: {
-        preprocessing: {
-          cluster_threshold: 5
-        },
-        resolution: {
-          duration: 10
-        }
-      }
-    }
+    problem = attributes_for(:problem, matrice: 0, point: size, unit: 0, vehicle: 0, service: size-2)
+    problem[:matrices] = [attributes_for(:matrice, time: [
+                                                          [0, 655, 1948, 5231, 2971, 0],
+                                                          [603, 0, 1692, 4977, 2715, 603],
+                                                          [1861, 1636, 0, 6143, 1532, 1861],
+                                                          [5184, 4951, 6221, 0, 7244, 5184],
+                                                          [2982, 2758, 1652, 7264, 0, 2982],
+                                                          [0, 655, 1948, 5231, 2971, 0]
+                                                         ])]
+    problem[:vehicles] = [attributes_for(:vehicle, end_point_id: "point_#{size - 1}")]
+    problem[:configuration] = attributes_for(:configuration, duration: 10, cluster_threshold: 5)
+
     assert_equal 4, OptimizerWrapper.send(:zip_cluster, Models::Vrp.create(problem), 5, false).size # without start/end/rest
   end
 
   def test_with_cluster
+    FactoryBot.rewind_sequences
     size = 5
-    problem = {
-      matrices: [{
-        id: 'matrix_0',
-        time: [
-          [ 0,  1,  1, 10,  0],
-          [ 1,  0,  1, 10,  1],
-          [ 1,  1,  0, 10,  1],
-          [10, 10, 10,  0, 10],
-          [ 0,  1,  1, 10,  0]
-        ],
-        distance: [
-          [ 0,  1,  1, 10,  0],
-          [ 1,  0,  1, 10,  1],
-          [ 1,  1,  0, 10,  1],
-          [10, 10, 10,  0, 10],
-          [ 0,  1,  1, 10,  0]
-        ]
-      }],
-      points: (0..(size - 1)).collect{ |i|
-        {
-          id: "point_#{i}",
-          matrix_index: i
-        }
-      },
-      vehicles: [{
-        id: 'vehicle_0',
-        start_point_id: 'point_0',
-        matrix_id: 'matrix_0'
-      }],
-      services: (1..(size - 1)).collect{ |i|
-        {
-          id: "service_#{i}",
-          activity: {
-            point_id: "point_#{i}"
-          }
-        }
-      },
-      configuration: {
-        preprocessing: {
-          cluster_threshold: 5
-        },
-        resolution: {
-          duration: 10
-        }
-      }
-    }
+    problem = attributes_for(:problem, matrice: 0, point: size, unit: 0, vehicle: 1, service: size-1)
+    problem[:matrices] = [attributes_for(:matrice, time: matriceInit, distance: matriceInit)]
+    problem[:configuration] = attributes_for(:configuration, duration: 10, cluster_threshold: 5)
+
     vrp = Models::Vrp.create(problem)
-    [:ortools, :jsprit, :vroom].each{ |o|
+    [:ortools, :vroom].each{ |o|
       result = OptimizerWrapper.solve([service: o, vrp: vrp])
       assert_equal size - 1 + 1, result[:routes][0][:activities].size, "[#{o}] "
       services = result[:routes][0][:activities].collect{ |a| a[:service_id] }
@@ -656,76 +194,36 @@ class WrapperTest < Minitest::Test
   end
 
   def test_with_large_size_cluster
+    FactoryBot.rewind_sequences
     size = 9
-    problem = {
-      matrices: [{
-        id: 'matrix_0',
-        time: [
-          [0, 1, 2, 3, 4, 5, 6, 7, 8],
-          [1, 0, 2, 3, 4, 5, 6, 7, 8],
-          [1, 2, 0, 3, 4, 5, 6, 7, 8],
-          [1, 2, 3, 0, 4, 5, 6, 7, 8],
-          [1, 2, 3, 4, 0, 5, 6, 7, 8],
-          [1, 2, 3, 4, 5, 0, 6, 7, 8],
-          [1, 2, 3, 4, 5, 6, 0, 7, 8],
-          [1, 2, 3, 4, 5, 6, 7, 0, 8],
-          [1, 2, 3, 4, 5, 6, 7, 8, 0]
-        ],
-        distance: [
-          [0, 1, 2, 3, 4, 5, 6, 7, 8],
-          [1, 0, 2, 3, 4, 5, 6, 7, 8],
-          [1, 2, 0, 3, 4, 5, 6, 7, 8],
-          [1, 2, 3, 0, 4, 5, 6, 7, 8],
-          [1, 2, 3, 4, 0, 5, 6, 7, 8],
-          [1, 2, 3, 4, 5, 0, 6, 7, 8],
-          [1, 2, 3, 4, 5, 6, 0, 7, 8],
-          [1, 2, 3, 4, 5, 6, 7, 0, 8],
-          [1, 2, 3, 4, 5, 6, 7, 8, 0]
-        ]
-      }],
-      points: (0..(size - 1)).collect{ |i|
-        {
-          id: "point_#{i}",
-          matrix_index: i
-        }
-      },
-      rests: [{
-        id: 'rest_0',
-        timewindows: [{
-          start: 1,
-          end: 2
-        }],
-        duration: 1
-      }],
-      vehicles: [{
-        id: 'vehicle_0',
-        start_point_id: 'point_0',
-        end_point_id: 'point_' + (size - 1).to_s,
-        matrix_id: 'matrix_0',
-        rest_ids: ['rest_0']
-      }],
-      services: (1..(size - 2)).collect{ |i|
-        {
-          id: "service_#{i}",
-          activity: {
-            point_id: "point_#{i}",
-            late_multiplier: 3,
-            timewindows: [{
-              start: 1,
-              end: 2
-            }]
-          }
-        }
-      },
-      configuration: {
-        preprocessing: {
-          cluster_threshold: 6
-        },
-        resolution: {
-          duration: 10
-        }
-      }
-    }
+    problem = attributes_for(:problem, matrice: 0, point: size, unit: 0, vehicle: 0, service: 0)
+    problem[:matrices] = [attributes_for(:matrice, time: [
+                                                          [0, 1, 2, 3, 4, 5, 6, 7, 8],
+                                                          [1, 0, 2, 3, 4, 5, 6, 7, 8],
+                                                          [1, 2, 0, 3, 4, 5, 6, 7, 8],
+                                                          [1, 2, 3, 0, 4, 5, 6, 7, 8],
+                                                          [1, 2, 3, 4, 0, 5, 6, 7, 8],
+                                                          [1, 2, 3, 4, 5, 0, 6, 7, 8],
+                                                          [1, 2, 3, 4, 5, 6, 0, 7, 8],
+                                                          [1, 2, 3, 4, 5, 6, 7, 0, 8],
+                                                          [1, 2, 3, 4, 5, 6, 7, 8, 0]
+                                                         ], 
+                                                  value: [
+                                                          [0, 1, 2, 3, 4, 5, 6, 7, 8],
+                                                          [1, 0, 2, 3, 4, 5, 6, 7, 8],
+                                                          [1, 2, 0, 3, 4, 5, 6, 7, 8],
+                                                          [1, 2, 3, 0, 4, 5, 6, 7, 8],
+                                                          [1, 2, 3, 4, 0, 5, 6, 7, 8],
+                                                          [1, 2, 3, 4, 5, 0, 6, 7, 8],
+                                                          [1, 2, 3, 4, 5, 6, 0, 7, 8],
+                                                          [1, 2, 3, 4, 5, 6, 7, 0, 8],
+                                                          [1, 2, 3, 4, 5, 6, 7, 8, 0]
+                                                         ])]
+    problem[:rests] = [attributes_for(:rest, duration: 1, timewindows: [{start: 1, end: 2}])]
+    problem[:vehicles] = [attributes_for(:vehicle, rest_ids: ['rest_0'], end_point_id: "point_#{size-1}")]
+    problem[:services] = attributes_for_list(:service, size-2, late_multiplier: 3, timewindows: [{start: 1, end: 2}])
+    problem[:configuration] = attributes_for(:configuration, duration: 10, cluster_threshold: 6)
+
     original_stdout = $stdout
     $stdout = StringIO.new('','w')
     result = OptimizerWrapper.solve([service: :ortools, vrp: Models::Vrp.create(problem)])
@@ -742,161 +240,64 @@ class WrapperTest < Minitest::Test
   end
 
   def test_multiple_matrices
+    FactoryBot.rewind_sequences
     size = 5
-    problem = {
-      matrices: [{
-        id: 'matrix_0',
-        time: [
-          [ 0, 10, 20, 30,  0],
-          [10,  0, 30, 40, 10],
-          [20, 30,  0, 50, 20],
-          [30, 40, 50,  0, 30],
-          [ 0, 10, 20, 30,  0]
-        ],
-        distance: [
-          [ 0, 10, 20, 30,  0],
-          [10,  0, 30, 40, 10],
-          [20, 30,  0, 50, 20],
-          [30, 40, 50,  0, 30],
-          [ 0, 10, 20, 30,  0]
-        ]
-      }, {
-        id: 'matrix_1',
-        time: [
-          [ 0, 10, 20, 30,  0],
-          [10,  0, 30, 40, 10],
-          [20, 30,  0, 50, 20],
-          [30, 40, 50,  0, 30],
-          [ 0, 10, 20, 30,  0]
-        ],
-        distance: [
-          [ 0, 10, 20, 30,  0],
-          [10,  0, 30, 40, 10],
-          [20, 30,  0, 50, 20],
-          [30, 40, 50,  0, 30],
-          [ 0, 10, 20, 30,  0]
-        ]
-      }],
-      points: (0..(size - 1)).collect{ |i|
-        {
-          id: "point_#{i}",
-          matrix_index: i
-        }
-      },
-      vehicles: [{
-        id: 'vehicle_0',
-        start_point_id: 'point_0',
-        matrix_id: 'matrix_0'
-      }, {
-        id: 'vehicle_1',
-        start_point_id: 'point_0',
-        matrix_id: 'matrix_1'
-      }],
-      services: (1..(size - 1)).collect{ |i|
-        {
-          id: "service_#{i}",
-          activity: {
-            point_id: "point_#{i}"
-          }
-        }
-      },
-      configuration: {
-        preprocessing: {
-          cluster_threshold: 5
-        },
-        resolution: {
-          duration: 10
-        }
-      }
-    }
+    problem = attributes_for(:problem, matrice: 0, point: size, unit: 0, vehicle: 0, service: size-1)
+    problem[:matrices] = [attributes_for(:matrice, time: [
+                                                          [ 0, 10, 20, 30,  0],
+                                                          [10,  0, 30, 40, 10],
+                                                          [20, 30,  0, 50, 20],
+                                                          [30, 40, 50,  0, 30],
+                                                          [ 0, 10, 20, 30,  0]
+                                                         ], 
+                                                  value: [
+                                                          [ 0, 10, 20, 30,  0],
+                                                          [10,  0, 30, 40, 10],
+                                                          [20, 30,  0, 50, 20],
+                                                          [30, 40, 50,  0, 30],
+                                                          [ 0, 10, 20, 30,  0]
+                                                         ]),
+                          attributes_for(:matrice, time: [
+                                                          [ 0, 10, 20, 30,  0],
+                                                          [10,  0, 30, 40, 10],
+                                                          [20, 30,  0, 50, 20],
+                                                          [30, 40, 50,  0, 30],
+                                                          [ 0, 10, 20, 30,  0]
+                                                         ], 
+                                                  value: [
+                                                          [ 0, 10, 20, 30,  0],
+                                                          [10,  0, 30, 40, 10],
+                                                          [20, 30,  0, 50, 20],
+                                                          [30, 40, 50,  0, 30],
+                                                          [ 0, 10, 20, 30,  0]
+                                                         ])]
+    problem[:vehicles] = [attributes_for(:vehicle),
+                             attributes_for(:vehicle, matrix_id: 'matrix_1')]
+    problem[:configuration] = attributes_for(:configuration, duration: 10, cluster_threshold: 5)
+
     assert OptimizerWrapper.wrapper_vrp('demo', {services: {vrp: [:demo]}}, Models::Vrp.create(problem), nil)
   end
 
   def test_multiple_matrices_not_provided
+    FactoryBot.rewind_sequences
     size = 5
-    problem = {
-      points: (0..(size - 1)).collect{ |i|
-        {
-          id: "point_#{i}",
-          location: {
-            lat: 45,
-            lon: Float(i)/10
-          }
-        }
-      },
-      vehicles: [{
-        id: 'vehicle_0',
-        start_point_id: 'point_0',
-        speed_multiplier: 0.9,
-      }, {
-        id: 'vehicle_1',
-        start_point_id: 'point_0',
-        speed_multiplier: 0.8,
-      }],
-      services: (1..(size - 1)).collect{ |i|
-        {
-          id: "service_#{i}",
-          activity: {
-            point_id: "point_#{i}"
-          }
-        }
-      },
-      configuration: {
-        preprocessing: {
-          cluster_threshold: 5
-        },
-        resolution: {
-          duration: 10
-        }
-      }
-    }
+    problem = attributes_for(:problem, matrice: 0, point: 0, unit: 0, vehicle: 0, service: size-1)
+    problem[:points] = (0..(size - 1)).collect{ |i|
+                         attributes_for(:pointLocation, lat: 45, lon: Float(i)/10)
+                       }
+    problem[:vehicles] = [attributes_for(:vehicleLocation, speed_multiplier: 0.9),
+                          attributes_for(:vehicleLocation, speed_multiplier: 0.8)]
+    problem[:configuration] = attributes_for(:configuration, duration: 100, cluster_threshold: 5)
+
     assert OptimizerWrapper.wrapper_vrp('demo', {services: {vrp: [:demo]}}, Models::Vrp.create(problem), nil)
   end
 
   def test_router_matrix_error
-    problem = {
-      points: [
-        {
-          id: "point_0",
-          location: {
-            lat: 1000,
-            lon: 1000
-          }
-        }, {
-          id: "point_1",
-          location: {
-            lat: 1000,
-            lon: 1000
-          }
-        }
-      ],
-      vehicles: [{
-        id: 'vehicle_0',
-        start_point_id: 'point_0',
-        speed_multiplier: 1,
-      }],
-      services: [
-        {
-          id: "service_0",
-          activity: {
-            point_id: "point_0"
-          }
-        }, {
-          id: "service_1",
-          activity: {
-            point_id: "point_1"
-          }
-        }
-      ],
-      configuration: {
-        preprocessing: {
-          cluster_threshold: 5
-        },
-        resolution: {
-          duration: 10
-        }
-      }
-    }
+    FactoryBot.rewind_sequences
+    problem = attributes_for(:problem, matrice: 0, point: 0, unit: 0, vehicle: 0, service: 2)
+    problem[:points] = attributes_for_list(:pointLocation, 3, lat: 1000, lon: 1000)
+    problem[:vehicles] = [attributes_for(:vehicleLocation, speed_multiplier: 1)]
+    problem[:configuration] = attributes_for(:configuration, duration: 10, cluster_threshold: 5)
 
     begin
       OptimizerWrapper.wrapper_vrp('demo', {services: {vrp: [:demo]}}, Models::Vrp.create(problem), nil)
@@ -906,49 +307,11 @@ class WrapperTest < Minitest::Test
   end
 
   def test_point_id_not_defined
-    problem = {
-      points: [
-        {
-          id: "point_0",
-          location: {
-            lat: 1000,
-            lon: 1000
-          }
-        }, {
-          id: "point_1",
-          location: {
-            lat: 1000,
-            lon: 1000
-          }
-        }
-      ],
-      vehicles: [{
-        id: 'vehicle_0',
-        start_point_id: 'point_0',
-        speed_multiplier: 1,
-      }],
-      services: [
-        {
-          id: "service_0",
-          activity: {
-            point_id: "point_0"
-          }
-        }, {
-          id: "service_1",
-          activity: {
-            point_id: "point_2"
-          }
-        }
-      ],
-      configuration: {
-        preprocessing: {
-          cluster_threshold: 5
-        },
-        resolution: {
-          duration: 10
-        }
-      }
-    }
+    FactoryBot.rewind_sequences
+    problem = attributes_for(:problem, matrice: 0, point: 0, unit: 0, vehicle: 0, service: 2)
+    problem[:points] = attributes_for_list(:pointLocation, 2, lat: 1000, lon: 1000)
+    problem[:vehicles] = [attributes_for(:vehicleLocation, speed_multiplier: 1)]
+    problem[:configuration] = attributes_for(:configuration, duration: 100, cluster_threshold: 5)
 
     begin
       OptimizerWrapper.wrapper_vrp('demo', {services: {vrp: [:demo]}}, Models::Vrp.create(problem), nil)
@@ -959,68 +322,37 @@ class WrapperTest < Minitest::Test
   end
 
   def test_trace_location_not_defined
-    problem = {
-      matrices: [{
-        id: 'matrix_0',
-        time: [
-          [ 0, 10, 20, 30,  0],
-          [10,  0, 30, 40, 10],
-          [20, 30,  0, 50, 20],
-          [30, 40, 50,  0, 30],
-          [ 0, 10, 20, 30,  0]
-        ],
-        distance: [
-          [ 0, 10, 20, 30,  0],
-          [10,  0, 30, 40, 10],
-          [20, 30,  0, 50, 20],
-          [30, 40, 50,  0, 30],
-          [ 0, 10, 20, 30,  0]
-        ]
-      }],
-      points: [
-        {
-          id: "point_0",
-          matrix_index: 0,
-          location: {
-            lat: 1000,
-            lon: 1000
-          }
-        }, {
-          id: "point_1",
-          matrix_index: 2,
-        }
-      ],
-      vehicles: [{
-        id: 'vehicle_0',
-        matrix_id: 'matrix_0',
-        start_point_id: 'point_0',
-        speed_multiplier: 1,
-      }],
-      services: [
-        {
-          id: "service_0",
-          activity: {
-            point_id: "point_0"
-          }
-        }, {
-          id: "service_1",
-          activity: {
-            point_id: "point_1"
-          }
-        }
-      ],
-      configuration: {
-        preprocessing: {
-          cluster_threshold: 5
-        },
-        restitution: {
-          trace: true
-        },
-        resolution: {
-          duration: 10
-        }
-      }
-    }
+    FactoryBot.rewind_sequences
+    problem = attributes_for(:problem, matrice: 0, point: 0, unit: 0, vehicle: 0, service: 2)
+    problem[:matrices] = [attributes_for(:matrice, time: [
+                                                          [ 0, 10, 20, 30,  0],
+                                                          [10,  0, 30, 40, 10],
+                                                          [20, 30,  0, 50, 20],
+                                                          [30, 40, 50,  0, 30],
+                                                          [ 0, 10, 20, 30,  0]
+                                                         ], 
+                                                  value: [
+                                                          [ 0, 10, 20, 30,  0],
+                                                          [10,  0, 30, 40, 10],
+                                                          [20, 30,  0, 50, 20],
+                                                          [30, 40, 50,  0, 30],
+                                                          [ 0, 10, 20, 30,  0]
+                                                         ])]
+    problem[:points] = [{
+                          id: "point_0",
+                          matrix_index: 0,
+                          location: {
+                            lat: 1000,
+                            lon: 1000
+                          }
+                        },
+                        {
+                          id: "point_1",
+                          matrix_index: 2,
+                        }]
+    problem[:services][1][:activity][:point_id] = 'point_0'
+    problem[:vehicles] = [attributes_for(:vehicle, speed_multiplier: 1)]
+    problem[:configuration] = attributes_for(:configuration, duration: 10, cluster_threshold: 5, traces: true)
 
     begin
       OptimizerWrapper.wrapper_vrp('demo', {services: {vrp: [:demo]}}, Models::Vrp.create(problem), nil)
@@ -1031,271 +363,117 @@ class WrapperTest < Minitest::Test
   end
 
   def test_geometry_polyline_encoded
-    problem = {
-      points: [
-        {
-          id: "point_0",
-          location: {
-            lat: 48,
-            lon: 5
-          }
-        }, {
-          id: "point_1",
-          location: {
-            lat: 50,
-            lon: 1
-          }
-        }
-      ],
-      vehicles: [{
-        id: 'vehicle_0',
-        start_point_id: 'point_0',
-        speed_multiplier: 1,
-      }],
-      services: [
-        {
-          id: "service_0",
-          activity: {
-            point_id: "point_0"
-          }
-        }, {
-          id: "service_1",
-          activity: {
-            point_id: "point_1"
-          }
-        }
-      ],
-      configuration: {
-        preprocessing: {
-          cluster_threshold: 5
-        },
-        restitution: {
-          geometry: true,
-          geometry_polyline: true,
-          intermediate_solutions: false,
-        },
-        resolution: {
-          duration: 10
-        }
-      }
-    }
+    FactoryBot.rewind_sequences
+    problem = attributes_for(:problem, matrice: 0, point: 0, unit: 0, vehicle: 0, service: 2)
+    problem[:points] = [{
+                        id: "point_0",
+                        location: {
+                          lat: 48,
+                          lon: 5
+                        }
+                       },
+                       {
+                        id: "point_1",
+                        location: {
+                          lat: 50,
+                          lon: 1
+                        }
+                       }]
+    problem[:vehicles] = [attributes_for(:vehicleLocation, speed_multiplier: 1)]
+    problem[:services][1][:activity][:point_id] = 'point_0'
+    problem[:configuration] = attributes_for(:configuration, duration: 10, cluster_threshold: 5, geometry: true, geometry_polylines: true)
 
     result = OptimizerWrapper.solve([service: :ortools, vrp: Models::Vrp.create(problem)])
     assert result[:routes][0][:geometry]
   end
 
   def test_geometry_polyline
-    problem = {
-      points: [
-        {
-          id: "point_0",
-          location: {
-            lat: 48,
-            lon: 5
-          }
-        }, {
-          id: "point_1",
-          location: {
-            lat: 49,
-            lon: 1
-          }
-        }
-      ],
-      vehicles: [{
-        id: 'vehicle_0',
-        start_point_id: 'point_0',
-        speed_multiplier: 1,
-      }],
-      services: [
-        {
-          id: "service_0",
-          activity: {
-            point_id: "point_0"
-          }
-        }, {
-          id: "service_1",
-          activity: {
-            point_id: "point_1"
-          }
-        }
-      ],
-      configuration: {
-        preprocessing: {
-          cluster_threshold: 5
-        },
-        restitution: {
-          geometry: true,
-          geometry_polyline: false,
-          intermediate_solutions: false,
-        },
-        resolution: {
-          duration: 10
-        }
-      }
-    }
+    FactoryBot.rewind_sequences
+    problem = attributes_for(:problem, matrice: 0, point: 0, unit: 0, vehicle: 0, service: 2)
+    problem[:points] = [{
+                        id: "point_0",
+                        location: {
+                          lat: 48,
+                          lon: 5
+                        }
+                       },
+                       {
+                        id: "point_1",
+                        location: {
+                          lat: 49,
+                          lon: 1
+                        }
+                       }]
+    problem[:vehicles] = [attributes_for(:vehicleLocation, speed_multiplier: 1)]
+    problem[:services][1][:activity][:point_id] = 'point_0'
+    problem[:configuration] = attributes_for(:configuration, duration: 10, cluster_threshold: 5, geometry: true, geometry_polyline: false)
 
     result = OptimizerWrapper.solve([service: :ortools, vrp: Models::Vrp.create(problem)])
     assert result[:routes][0][:geometry]
   end
 
   def test_geometry_route_single_activity
-    problem = {
-      points: [
-        {
-          id: "point_0",
-          location: {
-            lat: 48,
-            lon: 5
-          }
-        }, {
-          id: "point_1",
-          location: {
-            lat: 49,
-            lon: 1
-          }
-        }
-      ],
-      vehicles: [{
-        id: 'vehicle_0',
-        start_point_id: 'point_0',
-        speed_multiplier: 1
-      }, {
-        id: 'vehicle_1',
-        start_point_id: 'point_0',
-        speed_multiplier: 1
-      }],
-      services: [
-        {
-          id: "service_0",
-          activity: {
-            point_id: "point_0"
-          }
-        }, {
-          id: "service_1",
-          activity: {
-            point_id: "point_1"
-          }
-        }
-      ],
-      configuration: {
-        preprocessing: {
-          cluster_threshold: 5
-        },
-        restitution: {
-          geometry: true,
-          geometry_polyline: false,
-          intermediate_solutions: false,
-        },
-        resolution: {
-          duration: 10
-        }
-      }
-    }
+    FactoryBot.rewind_sequences
+    problem = attributes_for(:problem, matrice: 0, point: 0, unit: 0, vehicle: 0, service: 2)
+    problem[:points] = [{
+                        id: "point_0",
+                        location: {
+                          lat: 48,
+                          lon: 5
+                        }
+                       },
+                       {
+                        id: "point_1",
+                        location: {
+                          lat: 49,
+                          lon: 1
+                        }
+                       }]
+    problem[:vehicles] = attributes_for_list(:vehicleLocation, 2, speed_multiplier: 1)
+    problem[:services][1][:activity][:point_id] = 'point_0'
+    problem[:configuration] = attributes_for(:configuration, duration: 10, cluster_threshold: 5, geometry: true, geometry_polyline: false)
 
     result = OptimizerWrapper.solve([service: :ortools, vrp: Models::Vrp.create(problem)])
     assert result[:routes][0][:geometry]
   end
 
   def test_geometry_with_rests
+    FactoryBot.rewind_sequences
     # conflict with rest
-    problem = {
-      points: [
-        {
-            id: "point0",
-            location:
-            {
-                lat: 5.7,
-                lon: 43.7
-            }
-        },
-        {
-            id: "point1",
-            location:
-            {
-                lat: 6.2,
-                lon: 44.2
-            }
-        },
-        {
-            id: "depot",
-            location:
-            {
-                lat: 44.0,
-                lon: 5.1
-            }
-        }],
-        rests: [
-        {
-            id: "break1",
-            duration: 3600.0,
-            timewindows: [
-            {
-                start: 45000,
-                end: 48600
-            }]
-        }],
-        vehicles: [
-        {
-            id: "vehicle1",
-            cost_fixed: 0.0,
-            cost_time_multiplier: 1.0,
-            cost_waiting_time_multiplier: 1.0,
-            router_mode: "car",
-            router_dimension: "time",
-            speed_multiplier: 1.0,
-            start_point_id: "depot",
-            end_point_id: "depot",
-            rest_ids: ["break1"],
-            timewindow: {
-                start: 28800,
-                end: 61200
-            }
-        }],
-        services: [
-        {
-            id: "point0",
-            type: "service",
-            activity:
-            {
-                duration: 1200.0,
-                point_id: "point0",
-                timewindows: [
-                {
-                    start: 28800,
-                    end: 63000
-                }]
-            }
-        },
-        {
-            id: "point1",
-            priority: 2,
-            visits_number: 1,
-            type: "service",
-            activity:
-            {
-                duration: 1800.0,
-                point_id: "point1",
-                timewindows: [
-                {
-                    start: 30600,
-                    end: 57600
-                }]
-            }
-        }],
-        configuration:
-        {
-            resolution:
-            {
-                duration: 100,
-            },
-            restitution:
-            {
-                geometry: true,
-                geometry_polyline: true,
-                intermediate_solutions: false,
-            }
-        }
-    }
+    problem = attributes_for(:problem, matrice: 0, point: 0, unit: 0, vehicle: 0, service: 0)
+    problem[:points] = [{
+                          id: "point_0",
+                          location: {
+                            lat: 44.0,
+                            lon: 5.1
+                          }
+                        },
+                        {
+                          id: "point_1",
+                          location: {
+                            lat: 5.7,
+                            lon: 43.7
+                          }
+                        },
+                        {
+                          id: "point_2",
+                          location: {
+                            lat: 6.2,
+                            lon: 44.2
+                          }
+                        }]
+    problem[:rests] = [attributes_for(:rest, duration: 3600, timewindows: [{start: 45000, end: 48600}])]
+    problem[:vehicles] = [attributes_for(:vehicleLocation, cost_time_multiplier: 1,
+                                                           cost_waiting_time_multiplier: 1,
+                                                           router_mode: "car",
+                                                           router_dimension: "time",
+                                                           speed_multiplier: 1,
+                                                           end_point_id: 'point_0',
+                                                           rest_ids: ['rest_0'],
+                                                           timewindow: {start: 28800, end: 61200})]
+    problem[:services] = [attributes_for(:service, duration: 1200, timewindows: [{start: 28800, end: 63000}]),
+                          attributes_for(:service, priority: 2, visits_number: 1, duration: 1800, timewindows: [{start: 30600, end: 57600}])]
+    problem[:configuration] = attributes_for(:configuration, duration: 100, cluster_threshold: 5, geometry: true, geometry_polyline: true)
 
     result = OptimizerWrapper.solve([service: :ortools, vrp: Models::Vrp.create(problem)])
     assert_equal result[:routes][0][:activities].size, 3
@@ -1303,80 +481,28 @@ class WrapperTest < Minitest::Test
   end
 
   def test_input_zones
-    problem = {
-      points: [
-        {
-          id: "point_0",
-          location: {
-            lat: 48,
-            lon: 5
-          }
-        }, {
-          id: "point_1",
-          location: {
-            lat: 49,
-            lon: 1
-          }
-        }
-      ],
-      zones: [{
-        id: "zone_0",
-        polygon: {
-        type: "Polygon",
-        coordinates: [[[0.5,48.5],[1.5,48.5],[1.5,49.5],[0.5,49.5],[0.5,48.5]]]
-        },
-        allocations: [["vehicle_0"]]
-      }, {
-        id: "zone_1",
-        polygon: {
-          type: "Polygon",
-          coordinates: [[[4.5,47.5],[5.5,47.5],[5.5,48.5],[4.5,48.5],[4.5,47.5]]]
-        },
-        allocations: [["vehicle_1"]]
-      }, {
-        id: "zone_2",
-        polygon: {
-          type: "Polygon",
-          coordinates: [[[2.5,46.5],[4.5,46.5],[4.5,48.5],[2.5,48.5],[2.5,46.5]]]
-        },
-        allocations: [["vehicle_1"]]
-      }],
-      vehicles: [{
-        id: 'vehicle_0',
-        start_point_id: 'point_0',
-        speed_multiplier: 1
-      }, {
-        id: 'vehicle_1',
-        start_point_id: 'point_0',
-        speed_multiplier: 1
-      }],
-      services: [
-        {
-          id: "service_0",
-          activity: {
-            point_id: "point_0"
-          }
-        }, {
-          id: "service_1",
-          activity: {
-            point_id: "point_1"
-          }
-        }
-      ],
-      configuration: {
-        preprocessing: {
-          cluster_threshold: 5
-        },
-        restitution: {
-          geometry: true,
-          geometry_polyline: false,
-          intermediate_solutions: false,
-        },
-        resolution: {
-          duration: 10
-        }
-      }
-    }
+    FactoryBot.rewind_sequences
+    problem = attributes_for(:problem, matrice: 0, point: 0, unit: 0, vehicle: 0, service: 2)
+    problem[:points] = [{
+                          id: "point_0",
+                          location: {
+                            lat: 48,
+                            lon: 5
+                          }
+                        },
+                        {
+                          id: "point_1",
+                          location: {
+                            lat: 49,
+                            lon: 1
+                          }
+                        }]
+    problem[:zones] = [attributes_for(:zone, coordinates: [[0.5,48.5],[1.5,48.5],[1.5,49.5],[0.5,49.5],[0.5,48.5]], allocations: [["vehicle_0"]]),
+                       attributes_for(:zone, coordinates: [[4.5,47.5],[5.5,47.5],[5.5,48.5],[4.5,48.5],[4.5,47.5]], allocations: [["vehicle_1"]]),
+                       attributes_for(:zone, coordinates: [[2.5,46.5],[4.5,46.5],[4.5,48.5],[2.5,48.5],[2.5,46.5]], allocations: [["vehicle_1"]])]
+    problem[:vehicles] = attributes_for_list(:vehicleLocation, 2, speed_multiplier: 1)
+    problem[:services][1][:activity][:point_id] = "point_0"
+    problem[:configuration] = attributes_for(:configuration, duration: 10, cluster_threshold: 5, geometry: true, geometry_polyline: false)
 
     result = OptimizerWrapper.wrapper_vrp('demo', {services: {vrp: [:ortools]}}, Models::Vrp.create(problem), nil)
     assert_equal result[:routes][0][:activities].size, 2
@@ -1384,90 +510,35 @@ class WrapperTest < Minitest::Test
   end
 
   def test_input_zones_shipment
-    problem = {
-      points: [
-        {
-          id: "point_0", # zone_1
-          location: {
-            lat: 48,
-            lon: 5
-          }
-        }, {
-          id: "point_1", # zone_0
-          location: {
-            lat: 49,
-            lon: 1
-          }
-        }, {
-          id: "point_2", # no_zone
-          location: {
-            lat: 50,
-            lon: 3
-          }
-        }
-      ],
-      zones: [{
-        id: "zone_0",
-        polygon: {
-        type: "Polygon",
-        coordinates: [[[0.5,48.5],[1.5,48.5],[1.5,49.5],[0.5,49.5],[0.5,48.5]]]
-        },
-        allocations: [["vehicle_0"]]
-      }, {
-        id: "zone_1",
-        polygon: {
-          type: "Polygon",
-          coordinates: [[[4.5,47.5],[5.5,47.5],[5.5,48.5],[4.5,48.5],[4.5,47.5]]]
-        },
-        allocations: [["vehicle_1"]]
-      }, {
-        id: "zone_2",
-        polygon: {
-          type: "Polygon",
-          coordinates: [[[2.5,46.5],[4.5,46.5],[4.5,48.5],[2.5,48.5],[2.5,46.5]]]
-        },
-        allocations: [["vehicle_1"]]
-      }],
-      vehicles: [{
-        id: 'vehicle_0',
-        start_point_id: 'point_0',
-        speed_multiplier: 1
-      }, {
-        id: 'vehicle_1',
-        start_point_id: 'point_0',
-        speed_multiplier: 1
-      }],
-      services: [{
-        id: "service_0",
-        activity: {
-          point_id: "point_1"
-        }
-      }],
-      shipments: [
-        {
-          id: "shipment_0",
-          pickup: {
-            point_id: "point_0"
-          },
-          delivery: {
-            point_id: "point_2"
-          }
-        }
-      ],
-      configuration: {
-        preprocessing: {
-          cluster_threshold: 5
-        },
-        restitution: {
-          geometry: true,
-          geometry_polyline: false,
-          intermediate_solutions: false,
-        },
-        resolution: {
-          duration: 10
-        }
-      }
-    }
+    FactoryBot.rewind_sequences
+    problem = attributes_for(:problem, matrice: 0, point: 0, unit: 0, vehicle: 0, service: 1)
+    problem[:points] = [{
+                          id: "point_0",
+                          location: {
+                            lat: 48,
+                            lon: 5
+                          }
+                        },
+                        {
+                          id: "point_1",
+                          location: {
+                            lat: 49,
+                            lon: 1
+                          }
+                        },
+                        {
+                          id: "point_2",
+                          location: {
+                            lat: 5,
+                            lon: 3
+                          }
+                        }]
+    problem[:zones] = [attributes_for(:zone, coordinates: [[0.5,48.5],[1.5,48.5],[1.5,49.5],[0.5,49.5],[0.5,48.5]], allocations: [["vehicle_0"]]),
+                       attributes_for(:zone, coordinates: [[4.5,47.5],[5.5,47.5],[5.5,48.5],[4.5,48.5],[4.5,47.5]], allocations: [["vehicle_1"]]),
+                       attributes_for(:zone, coordinates: [[2.5,46.5],[4.5,46.5],[4.5,48.5],[2.5,48.5],[2.5,46.5]], allocations: [["vehicle_1"]])]
+    problem[:vehicles] = attributes_for_list(:vehicleLocation, 2, speed_multiplier: 1)
+    problem[:shipments] = [attributes_for(:shipment, pointPickup: "point_0", pointDelivery: "point_2")]
+    problem[:configuration] = attributes_for(:configuration, duration: 10, cluster_threshold: 5, geometry: true, geometry_polyline: false)
 
     result = OptimizerWrapper.wrapper_vrp('demo', {services: {vrp: [:ortools]}}, Models::Vrp.create(problem), nil)
     assert_equal 2, result[:routes][0][:activities].size
@@ -1476,68 +547,27 @@ class WrapperTest < Minitest::Test
   end
 
   def test_shipments_result
-    problem = {
-      matrices: [{
-        id: 'matrix_0',
-        time: [
-          [ 0, 10, 20, 30,  0],
-          [10,  0, 30, 40, 10],
-          [20, 30,  0, 50, 20],
-          [30, 40, 50,  0, 30],
-          [ 0, 10, 20, 30,  0]
-        ],
-        distance: [
-          [ 0, 10, 20, 30,  0],
-          [10,  0, 30, 40, 10],
-          [20, 30,  0, 50, 20],
-          [30, 40, 50,  0, 30],
-          [ 0, 10, 20, 30,  0]
-        ]
-      }],
-      points: [{
-          id: "point_0",
-          matrix_index: 0
-        }, {
-          id: "point_1",
-          matrix_index: 1
-        }],
-      vehicles: [{
-        id: 'vehicle_0',
-        start_point_id: 'point_0',
-        speed_multiplier: 1,
-        matrix_id: 'matrix_0'
-      }],
-      shipments: [
-        {
-          id: "shipment_0",
-          pickup: {
-            point_id: "point_0"
-          },
-          delivery: {
-            point_id: "point_1"
-          }
-        }
-      ],
-      configuration: {
-        preprocessing: {
-          cluster_threshold: 5
-        },
-        resolution: {
-          duration: 10
-        },
-        restitution: {
-          intermediate_solutions: false,
-        }
-      }
-    }
+    FactoryBot.rewind_sequences
+    problem = attributes_for(:problem, matrice: 0, point: 2, unit: 0, vehicle: 1, service: 0)
+    problem[:matrices] = [{id: 'matrix_0', time: [
+                                                  [ 0, 10, 20, 30,  0],
+                                                  [10,  0, 30, 40, 10],
+                                                  [20, 30,  0, 50, 20],
+                                                  [30, 40, 50,  0, 30],
+                                                  [ 0, 10, 20, 30,  0]
+                                                ],
+                                      distance: [
+                                                  [ 0, 10, 20, 30,  0],
+                                                  [10,  0, 30, 40, 10],
+                                                  [20, 30,  0, 50, 20],
+                                                  [30, 40, 50,  0, 30],
+                                                  [ 0, 10, 20, 30,  0]
+                                                ]}]
+
+    problem[:shipments] = [attributes_for(:shipment, pointPickup: "point_0", pointDelivery: "point_1")]
+    problem[:configuration] = attributes_for(:configuration, duration: 10, cluster_threshold: 5)
 
     result = OptimizerWrapper.solve([service: :ortools, vrp: Models::Vrp.create(problem)])
-    assert result[:routes][0][:activities][1].has_key?(:pickup_shipment_id)
-    assert !result[:routes][0][:activities][1].has_key?(:delivery_shipment_id)
-    assert !result[:routes][0][:activities][2].has_key?(:pickup_shipment_id)
-    assert result[:routes][0][:activities][2].has_key?(:delivery_shipment_id)
-
-    result = OptimizerWrapper.solve([service: :jsprit, vrp: Models::Vrp.create(problem)])
     assert result[:routes][0][:activities][1].has_key?(:pickup_shipment_id)
     assert !result[:routes][0][:activities][1].has_key?(:delivery_shipment_id)
     assert !result[:routes][0][:activities][2].has_key?(:pickup_shipment_id)
@@ -1545,57 +575,19 @@ class WrapperTest < Minitest::Test
   end
 
   def test_assert_inapplicable_relations_without_relations
+    FactoryBot.rewind_sequences
     ortools = OptimizerWrapper::ORTOOLS
     vroom = OptimizerWrapper::VROOM
-    problem = {
-      matrices: [{
-        id: 'matrix_0',
-        time: [
-          [0, 1, 1],
-          [1, 0, 1],
-          [1, 1, 0]
-        ]
-      }],
-      points: [{
-        id: 'point_0',
-        matrix_index: 0
-      }, {
-        id: 'point_1',
-        matrix_index: 1
-      }, {
-        id: 'point_2',
-        matrix_index: 2
-      }],
-      vehicles: [{
-        id: 'vehicle_0',
-        start_point_id: 'point_0',
-        matrix_id: 'matrix_0',
-      }],
-      services: [{
-        id: 'service_1',
-        activity: {
-          point_id: 'point_1'
-        }
-      }, {
-        id: 'service_2',
-        activity: {
-          point_id: 'point_2'
-        }
-      }],
-      relations: [{
-        type: 'vehicle_group_duration',
-        linked_ids: [],
-        linked_vehicle_ids: [],
-        lapse: nil
-      }],
-      configuration: {
-        resolution: {
-          duration: 10,
-        }
-      }
-    }
-    vrp = Models::Vrp.create(problem)
+    problem = attributes_for(:problem, matrice: 1, point: 3, unit: 0, vehicle: 1, service: 2)
+    problem[:relations] = [{
+                            type: 'vehicle_group_duration',
+                            linked_ids: [],
+                            linked_vehicle_ids: [],
+                            lapse: nil
+                          }]
+    problem[:configuration] = attributes_for(:configuration, duration: 10)
 
+    vrp = Models::Vrp.create(problem)
     assert vroom.inapplicable_solve?(vrp).empty?
     assert ortools.inapplicable_solve?(vrp).empty?
   end
@@ -1651,248 +643,90 @@ class WrapperTest < Minitest::Test
   end
 
   def test_assert_inapplicable_relations_with_relations
+    FactoryBot.rewind_sequences
     ortools = OptimizerWrapper::ORTOOLS
     vroom = OptimizerWrapper::VROOM
-    problem = {
-      matrices: [{
-        id: 'matrix_0',
-        time: [
-          [0, 1, 1],
-          [1, 0, 1],
-          [1, 1, 0]
-        ]
-      }],
-      points: [{
-        id: 'point_0',
-        matrix_index: 0
-      }, {
-        id: 'point_1',
-        matrix_index: 1
-      }, {
-        id: 'point_2',
-        matrix_index: 2
-      }],
-      vehicles: [{
-        id: 'vehicle_0',
-        start_point_id: 'point_0',
-        matrix_id: 'matrix_0',
-      }],
-      services: [{
-        id: 'service_1',
-        activity: {
-          point_id: 'point_1'
-        }
-      }, {
-        id: 'service_2',
-        activity: {
-          point_id: 'point_2'
-        }
-      }],
-      relations: [{
-        type: 'vehicle_group_duration',
-        linked_ids: ['service_1'],
-        linked_vehicle_ids: ['vehicle_0'],
-        lapse: nil
-      }],
-      configuration: {
-        resolution: {
-          duration: 10,
-        }
-      }
-    }
-    vrp = Models::Vrp.create(problem)
+    problem = attributes_for(:problem, matrice: 1, point: 3, unit: 0, vehicle: 1, service: 2)
+    problem[:relations] = [{
+                            type: 'vehicle_group_duration',
+                            linked_ids: ['service_1'],
+                            linked_vehicle_ids: ['vehicle_0'],
+                            lapse: nil
+                          }]
+    problem[:configuration] = attributes_for(:configuration, duration: 10)
 
+    vrp = Models::Vrp.create(problem)
     assert !vroom.inapplicable_solve?(vrp).empty?
     assert ortools.inapplicable_solve?(vrp).empty?
   end
 
   def test_assert_inapplicable_routes_whithout_routes
+    FactoryBot.rewind_sequences
     ortools = OptimizerWrapper::ORTOOLS
     vroom = OptimizerWrapper::VROOM
-    problem = {
-      matrices: [{
-        id: 'matrix_0',
-        time: [
-          [0, 1, 1],
-          [1, 0, 1],
-          [1, 1, 0]
-        ]
-      }],
-      points: [{
-        id: 'point_0',
-        matrix_index: 0
-      }, {
-        id: 'point_1',
-        matrix_index: 1
-      }, {
-        id: 'point_2',
-        matrix_index: 2
-      }],
-      vehicles: [{
-        id: 'vehicle_0',
-        start_point_id: 'point_0',
-        matrix_id: 'matrix_0',
-      }],
-      services: [{
-        id: 'service_1',
-        activity: {
-          point_id: 'point_1'
-        }
-      }, {
-        id: 'service_2',
-        activity: {
-          point_id: 'point_2'
-        }
-      }],
-      relations: [{
-        type: 'vehicle_group_duration',
-        linked_ids: [],
-        linked_vehicle_ids: [],
-        lapse: nil
-      }],
-      routes: [{
-        mission_ids: []
-      }],
-      configuration: {
-        resolution: {
-          duration: 10,
-        }
-      }
-    }
-    vrp = Models::Vrp.create(problem)
+    problem = attributes_for(:problem, matrice: 1, point: 3, unit: 0, vehicle: 1, service: 2)
+    problem[:relations] = [{
+                            type: 'vehicle_group_duration',
+                            linked_ids: [],
+                            linked_vehicle_ids: [],
+                            lapse: nil
+                          }]
+    problem[:routes] = [{ mission_ids: [] }]
+    problem[:configuration] = attributes_for(:configuration, duration: 10)
 
+    vrp = Models::Vrp.create(problem)
     assert vroom.inapplicable_solve?(vrp).empty?
     assert ortools.inapplicable_solve?(vrp).empty?
   end
 
   def test_assert_inapplicable_routes_with_routes
+    FactoryBot.rewind_sequences
     ortools = OptimizerWrapper::ORTOOLS
     vroom = OptimizerWrapper::VROOM
-    problem = {
-      matrices: [{
-        id: 'matrix_0',
-        time: [
-          [0, 1, 1],
-          [1, 0, 1],
-          [1, 1, 0]
-        ]
-      }],
-      points: [{
-        id: 'point_0',
-        matrix_index: 0
-      }, {
-        id: 'point_1',
-        matrix_index: 1
-      }, {
-        id: 'point_2',
-        matrix_index: 2
-      }],
-      vehicles: [{
-        id: 'vehicle_0',
-        start_point_id: 'point_0',
-        matrix_id: 'matrix_0',
-      }],
-      services: [{
-        id: 'service_1',
-        activity: {
-          point_id: 'point_1'
-        }
-      }, {
-        id: 'service_2',
-        activity: {
-          point_id: 'point_2'
-        }
-      }],
-      relations: [{
-        type: 'vehicle_group_duration',
-        linked_ids: [],
-        linked_vehicle_ids: [],
-        lapse: nil
-      }],
-      routes: [{
-        mission_ids: ['service_1']
-      }],
-      configuration: {
-        resolution: {
-          duration: 10,
-        }
-      }
-    }
-    vrp = Models::Vrp.create(problem)
+    problem = attributes_for(:problem, matrice: 1, point: 3, unit: 0, vehicle: 1, service: 2)
+    problem[:relations] = [{
+                            type: 'vehicle_group_duration',
+                            linked_ids: [],
+                            linked_vehicle_ids: [],
+                            lapse: nil
+                          }]
+    problem[:routes] = [{ mission_ids: ['service_1'] }]
+    problem[:configuration] = attributes_for(:configuration, duration: 10)
 
+    vrp = Models::Vrp.create(problem)
     assert !vroom.inapplicable_solve?(vrp).empty?
     assert ortools.inapplicable_solve?(vrp).empty?
   end
 
   def test_split_vrps_using_two_solver
-    problem={
-      points: [
-        {
-          id: 'point_0',
-          location: {
-            lat: 48.787021,
-            lon: 2.65819
-          }
-        },
-        {
-        id: 'point_1',
-            location:
-            {
-                lat: 48.844836,
-                lon: 2.369496
-            }
-        },
-        {
-        id: 'point_2',
-            location:
-            {
-                lat: 48.630381,
-                lon: 2.437141
-            }
-        }
-      ],
-      vehicles: [
-        {
-            id: 'vehicle_0',
-            speed_multiplier: 1.0,
-            start_point_id: 'point_0',
-            cost_time_multiplier: 1.0,
-            cost_waiting_time_multiplier: 1.0
-        },
-        {
-            id: 'vehicle_1',
-            speed_multiplier: 1.0,
-            cost_time_multiplier: 1.0,
-            cost_waiting_time_multiplier: 1.0
-        }
-      ],
-      services: [
-        {
-            id: 'service_1',
-            sticky_vehicle_ids: ['vehicle_0'],
-
-            activity:
-            {
-                point_id: 'point_1',
-                duration: 600.0
-            }
-        },
-        {
-            id: 'service_2',
-            sticky_vehicle_ids: ['vehicle_1'],
-            activity:
-            {
-                point_id: 'point_2',
-                duration: 600.0
-            }
-        }
-      ],
-      configuration: {
-        resolution: {
-          duration: 100,
-        }
-      }
-    }
+    FactoryBot.rewind_sequences
+    problem = attributes_for(:problem, matrice: 0, point: 0, unit: 0, vehicle: 0, service: 0)
+    problem[:points] = [{
+                          id: "point_0",
+                          location: {
+                            lat: 48.787021,
+                            lon: 2.65819
+                          }
+                        },
+                        {
+                          id: "point_1",
+                          location: {
+                            lat: 48.844836,
+                            lon: 2.369496
+                          }
+                        },
+                        {
+                          id: "point_2",
+                          location: {
+                            lat: 48.630381,
+                            lon: 2.437141
+                          }
+                        }]
+    problem[:vehicles] = [attributes_for(:vehicleLocation, speed_multiplier: 1, cost_time_multiplier: 1, cost_waiting_time_multiplier: 1),
+                          attributes_for(:vehicleLocation, speed_multiplier: 1, cost_time_multiplier: 1, cost_waiting_time_multiplier: 1, start_point_id: nil)]
+    problem[:services] = [attributes_for(:service, sticky_vehicle_ids: ['vehicle_0'], duration: 600),
+                          attributes_for(:service, sticky_vehicle_ids: ['vehicle_1'], duration: 600)]
+    problem[:configuration] = attributes_for(:configuration, duration: 100)
 
     result = OptimizerWrapper.wrapper_vrp('demo', { services: { vrp: [:vroom, :ortools] }}, Models::Vrp.create(problem), nil)
     assert_equal result[:solvers][0],'vroom'
@@ -1900,704 +734,188 @@ class WrapperTest < Minitest::Test
   end
 
   def test_assert_inapplicable_for_vroom_if_vehicle_distance
+    FactoryBot.rewind_sequences
     ortools = OptimizerWrapper::ORTOOLS
     vroom = OptimizerWrapper::VROOM
-    problem = {
-      matrices: [{
-        id: 'matrix_0',
-        time: [
-          [0, 1, 1],
-          [1, 0, 1],
-          [1, 1, 0]
-        ]
-      }],
-      points: [{
-        id: 'point_0',
-        matrix_index: 0
-      }, {
-        id: 'point_1',
-        matrix_index: 1
-      }, {
-        id: 'point_2',
-        matrix_index: 2
-      }],
-      vehicles: [{
-        id: 'vehicle_0',
-        start_point_id: 'point_0',
-        matrix_id: 'matrix_0',
-        distance: 10
-      }],
-      services: [{
-        id: 'service_1',
-        activity: {
-          point_id: 'point_1'
-        }
-      }, {
-        id: 'service_2',
-        activity: {
-          point_id: 'point_2'
-        }
-      }],
-      relations: [{
-        type: 'vehicle_group_duration',
-        linked_ids: [],
-        linked_vehicle_ids: [],
-        lapse: nil
-      }],
-      configuration: {
-        resolution: {
-          duration: 10,
-        }
-      }
-    }
-    vrp = Models::Vrp.create(problem)
+    problem = attributes_for(:problem, matrice: 1, point: 3, unit: 0, vehicle: 0, service: 2)
+    problem[:vehicles] = [attributes_for(:vehicle, distance: 10)]
+    problem[:relations] = [{
+                            type: 'vehicle_group_duration',
+                            linked_ids: [],
+                            linked_vehicle_ids: [],
+                            lapse: nil
+                          }]
+    problem[:configuration] = attributes_for(:configuration, duration: 10)
 
+    vrp = Models::Vrp.create(problem)
     assert !vroom.inapplicable_solve?(vrp).empty?
     assert ortools.inapplicable_solve?(vrp).empty?
   end
 
   def test_impossible_service_capacity
-    problem = {
-      matrices: [{
-        id: 'matrix_0',
-        time: [
-          [0, 1, 1],
-          [1, 0, 1],
-          [1, 1, 0]
-        ]
-      }],
-      units: [{
-          id: "unit0",
-          label: "kg"
-      }, {
-          id: "unit1",
-          label: "kg"
-      }, {
-          id: "unit2",
-          label: "kg"
-      }],
-      points: [{
-        id: 'point_0',
-        matrix_index: 0
-      }, {
-        id: 'point_1',
-        matrix_index: 1
-      }, {
-        id: 'point_2',
-        matrix_index: 2
-      }],
-      vehicles: [{
-        id: 'vehicle_0',
-        start_point_id: 'point_0',
-        matrix_id: 'matrix_0',
-        capacities: [{
-          unit_id: "unit0",
-          limit: 5
-        },{
-          unit_id: "unit1",
-          limit: 5
-        },{
-          unit_id: "unit2",
-          limit: 5
-        }]
-      }],
-      services: [{
-        id: 'service_1',
-        activity: {
-          point_id: 'point_1'
-        },
-        quantities: [{
-            unit_id: "unit0",
-            value: 6
-          }],
-      }, {
-        id: 'service_2',
-        activity: {
-          point_id: 'point_2'
-        }
-      }],
-      configuration: {
-        resolution: {
-          duration: 100,
-        }
-      }
-    }
+    FactoryBot.rewind_sequences
+    problem = attributes_for(:problem, matrice: 1, point: 3, unit: 1, vehicle: 0, service: 0)
+    problem[:vehicles] = [attributes_for(:vehicle_with_capacity, limit: 5)]
+    problem[:services] = [attributes_for(:service_with_capacity, value: 6),
+                          attributes_for(:service)]
+    problem[:configuration] = attributes_for(:configuration, duration: 10)
+
     result = OptimizerWrapper.wrapper_vrp('demo', { services: { vrp: [:ortools] }}, Models::Vrp.create(problem), nil)
     assert_equal 1, result[:unassigned].size
   end
 
   def test_impossible_service_skills
-    problem = {
-      matrices: [{
-        id: 'matrix_0',
-        time: [
-          [0, 1, 1],
-          [1, 0, 1],
-          [1, 1, 0]
-        ]
-      }],
-      points: [{
-        id: 'point_0',
-        matrix_index: 0
-      }, {
-        id: 'point_1',
-        matrix_index: 1
-      }, {
-        id: 'point_2',
-        matrix_index: 2
-      }],
-      vehicles: [{
-        id: 'vehicle_0',
-        start_point_id: 'point_0',
-        matrix_id: 'matrix_0'
-      }],
-      services: [{
-        id: 'service_1',
-        activity: {
-          point_id: 'point_1'
-        },
-        skills: ['A']
-      }, {
-        id: 'service_2',
-        activity: {
-          point_id: 'point_2'
-        }
-      }],
-      configuration: {
-        resolution: {
-          duration: 100,
-        }
-      }
-    }
+    FactoryBot.rewind_sequences
+    problem = attributes_for(:problem, matrice: 1, point: 3, unit: 1, vehicle: 1, service: 0)
+    problem[:services] = [attributes_for(:service, skills: ['A']), 
+                          attributes_for(:service)]
+    problem[:configuration] = attributes_for(:configuration, duration: 10)
+
     result = OptimizerWrapper.wrapper_vrp('demo', { services: { vrp: [:ortools] }}, Models::Vrp.create(problem), nil)
     assert_equal 0, result[:unassigned].size
   end
 
   def test_impossible_service_tw
-    problem = {
-      matrices: [{
-        id: 'matrix_0',
-        time: [
-          [0, 1, 1],
-          [1, 0, 1],
-          [1, 1, 0]
-        ]
-      }],
-      points: [{
-        id: 'point_0',
-        matrix_index: 0
-      }, {
-        id: 'point_1',
-        matrix_index: 1
-      }, {
-        id: 'point_2',
-        matrix_index: 2
-      }],
-      vehicles: [{
-        id: 'vehicle_0',
-        start_point_id: 'point_0',
-        matrix_id: 'matrix_0',
-        timewindow: {
-          start: 6,
-          end: 10
-        }
-      }],
-      services: [{
-        id: 'service_1',
-        activity: {
-          point_id: 'point_1',
-          timewindows: [{
-              start: 0,
-              end: 5
-          }]
-        },
-      }, {
-        id: 'service_2',
-        activity: {
-          point_id: 'point_2'
-        }
-      }],
-      configuration: {
-        resolution: {
-          duration: 100,
-        }
-      }
-    }
+    FactoryBot.rewind_sequences
+    problem = attributes_for(:problem, matrice: 1, point: 3, unit: 0, vehicle: 0, service: 0)
+    problem[:vehicles] = [attributes_for(:vehicle, timewindow: {start: 6, end: 10})]
+    problem[:services] = [attributes_for(:service, timewindows: [{start: 0, end: 5}]),
+                          attributes_for(:service)]
+    problem[:configuration] = attributes_for(:configuration, duration: 100)
+
     result = OptimizerWrapper.wrapper_vrp('demo', { services: { vrp: [:ortools] }}, Models::Vrp.create(problem), nil)
     assert_equal 1, result[:unassigned].size
   end
 
   def test_impossible_service_tw_periodic
-    problem = {
-      matrices: [{
-        id: 'matrix_0',
-        time: [
-          [0, 1, 1],
-          [1, 0, 1],
-          [1, 1, 0]
-        ]
-      }],
-      points: [{
-        id: 'point_0',
-        matrix_index: 0
-      }, {
-        id: 'point_1',
-        matrix_index: 1
-      }, {
-        id: 'point_2',
-        matrix_index: 2
-      }],
-      vehicles: [{
-        id: 'vehicle_0',
-        start_point_id: 'point_0',
-        matrix_id: 'matrix_0',
-        sequence_timewindows: [{
-          start: 6,
-          end: 10,
-          day_index: 2
-        },{
-          start: 0,
-          end: 5,
-          day_index: 0
-        }]
-      }],
-      services: [{
-        id: 'service_1',
-        activity: {
-          point_id: 'point_1',
-          timewindows: [{
-              start: 0,
-              end: 5,
-              day_index: 1
-          }]
-        },
-      }, {
-        id: 'service_2',
-        activity: {
-          point_id: 'point_2'
-        }
-      }],
-      configuration: {
-        resolution: {
-          duration: 100,
-        },
-        schedule:{
-          range_indices:{
-            start: 0,
-            end: 2
-          }
-        }
-      }
-    }
+    FactoryBot.rewind_sequences
+    problem = attributes_for(:problem, matrice: 1, point: 3, unit: 0, vehicle: 0, service: 0)
+    problem[:vehicles] = [attributes_for(:vehicle, sequence_timewindows: [{start: 6, end: 10, day_index: 2}, {start: 0, end: 5, day_index: 0}])]
+    problem[:services] = [attributes_for(:service, timewindows: [{start: 0, end: 5, day_index: 1}]),
+                          attributes_for(:service)]
+    problem[:configuration] = attributes_for(:configuration, duration: 100, range_indices: {start: 0, end: 2})
+
     result = OptimizerWrapper.wrapper_vrp('demo', { services: { vrp: [:ortools] }}, Models::Vrp.create(problem), nil)
     assert_equal 1, result[:unassigned].size
   end
 
   def test_impossible_service_distance
-    problem = {
-      matrices: [{
-        id: 'matrix_0',
-        time: [
-          [0, 1, 1],
-          [1, 0, 1],
-          [2147483647, 2147483647, 0]
-        ]
-      }],
-      points: [{
-        id: 'point_0',
-        matrix_index: 0
-      }, {
-        id: 'point_1',
-        matrix_index: 1
-      }, {
-        id: 'point_2',
-        matrix_index: 2
-      }],
-      vehicles: [{
-        id: 'vehicle_0',
-        start_point_id: 'point_0',
-        matrix_id: 'matrix_0'
-      }],
-      services: [{
-        id: 'service_1',
-        activity: {
-          point_id: 'point_1'
-        },
-      }, {
-        id: 'service_2',
-        activity: {
-          point_id: 'point_2'
-        }
-      }],
-      configuration: {
-        resolution: {
-          duration: 100,
-        }
-      }
-    }
+    FactoryBot.rewind_sequences
+    problem = attributes_for(:problem, matrice: 1, point: 3, unit: 0, vehicle: 1, service: 2)
+    problem[:matrices][0][:time][2] = [2147483647, 2147483647, 0]
+    problem[:configuration] = attributes_for(:configuration, duration: 100)
+
     result = OptimizerWrapper.wrapper_vrp('demo', { services: { vrp: [:ortools] }}, Models::Vrp.create(problem), nil)
     assert_equal 1, result[:unassigned].size
   end
 
   def test_impossible_service_unconsistent_minimum_lapse
-    problem = {
-      matrices: [{
-        id: 'matrix_0',
-        time: [
-          [0, 1, 1],
-          [1, 0, 1],
-          [1, 1, 0]
-        ]
-      }],
-      points: [{
-        id: 'point_0',
-        matrix_index: 0
-      }, {
-        id: 'point_1',
-        matrix_index: 1
-      }, {
-        id: 'point_2',
-        matrix_index: 2
-      }],
-      vehicles: [{
-        id: 'vehicle_0',
-        start_point_id: 'point_0',
-        matrix_id: 'matrix_0',
-        timewindow: {
-          start: 0,
-        }
-      }],
-      services: [{
-        id: 'service_1',
-        visits_number: 2,
-        activity: {
-          point_id: 'point_1'
-        },
-        minimum_lapse: 2
-      }, {
-        id: 'service_2',
-        activity: {
-          point_id: 'point_2'
-        }
-      }],
-      configuration: {
-        resolution: {
-          duration: 100,
-        },
-        schedule:{
-          range_date: {
-            start: Date.new(2017,1,27),
-            end: Date.new(2017,1,28)
-          }
-        }
-      }
-    }
+    FactoryBot.rewind_sequences
+    problem = attributes_for(:problem, matrice: 1, point: 3, unit: 0, vehicle: 0, service: 0)
+    problem[:services] = [attributes_for(:service, visits_number: 2, minimum_lapse: 2),
+                          attributes_for(:service)]
+    problem[:vehicles] = [attributes_for(:vehicle, timewindow: {start: 0})]
+    problem[:configuration] = attributes_for(:configuration, duration: 100, range_date: {start: Date.new(2017,1,27), end: Date.new(2017,1,28)})
+
     result = OptimizerWrapper.wrapper_vrp('demo', { services: { vrp: [:ortools] }}, Models::Vrp.create(problem), nil)
     assert_equal 2, result[:unassigned].size
   end
 
   def test_assert_inapplicable_for_vroom_if_vehicle_distance
+    FactoryBot.rewind_sequences
     ortools = OptimizerWrapper::ORTOOLS
     vroom = OptimizerWrapper::VROOM
-    problem = {
-      matrices: [{
-        id: 'matrix_0',
-        time: [
-          [0, 1, 1],
-          [1, 0, 1],
-          [1, 1, 0]
-        ]
-      }],
-      points: [{
-        id: 'point_0',
-        matrix_index: 0
-      }, {
-        id: 'point_1',
-        matrix_index: 1
-      }, {
-        id: 'point_2',
-        matrix_index: 2
-      }],
-      vehicles: [{
-        id: 'vehicle_0',
-        start_point_id: 'point_0',
-        matrix_id: 'matrix_0',
-        distance: 10
-      }],
-      services: [{
-        id: 'service_1',
-        activity: {
-          point_id: 'point_1'
-        }
-      }, {
-        id: 'service_2',
-        activity: {
-          point_id: 'point_2'
-        }
-      }],
-      relations: [{
-        type: 'vehicle_group_duration',
-        linked_ids: [],
-        linked_vehicle_ids: [],
-        lapse: nil
-      }],
-      configuration: {
-        resolution: {
-          duration: 10,
-        }
-      }
-    }
-    vrp = Models::Vrp.create(problem)
+    problem = attributes_for(:problem, matrice: 1, point: 3, unit: 0, vehicle: 0, service: 2)
+    problem[:vehicles] = [attributes_for(:vehicle, distance: 10)]
+    problem[:relations] = [{
+                            type: 'vehicle_group_duration',
+                            linked_ids: [],
+                            linked_vehicle_ids: [],
+                            lapse: nil
+                          }]
+    problem[:configuration] = attributes_for(:configuration, duration: 10)
 
+    vrp = Models::Vrp.create(problem)
     assert !vroom.inapplicable_solve?(vrp).empty?
     assert ortools.inapplicable_solve?(vrp).empty?
   end
 
   def test_should_handle_result_without_unassigned
-    problem = {
-      matrices: [{
-        id: 'matrix_0',
-        time: [
-          [0, 1, 1, 1],
-          [1, 0, 1, 1],
-          [1, 1, 0, 1],
-          [1, 1, 1, 0]
-        ],
-      }],
-      points: [
-        {
-          id: "point_0",
-          location: {
-              lat: 44.82332,
-              lon: -0.607338
-          }
-        }, {
-          id: "point_1",
-          location: {
-              lat: 44.83395,
-              lon: -0.56545
-          }
-        }, {
-          id: "point_2",
-          location: {
-              lat: 44.853662,
-              lon: -0.568542
-          }
-        }, {
-          id: "point_3",
-          location: {
-              lat: 44.853662,
-              lon: -0.568542
-          }
-      }],
-      vehicles: [{
-        id: 'vehicle_0',
-        cost_time_multiplier: 1,
-        start_point_id: 'point_2',
-        end_point_id: 'point_3',
-        matrix_id: 'matrix_0'
-      }],
-      services: [{
-        id: 'service_0',
-        sticky_vehicle_ids: ['vehicle_0'],
-        activity: {
-          point_id: 'point_0'
-        }
-      }, {
-        id: 'service_1',
-        sticky_vehicle_ids: ['vehicle_0'],
-        activity: {
-          point_id: 'point_1'
-        }
-      }],
-      configuration: {
-        preprocessing: {
-          max_split_size: 500,
-        },
-        resolution: {
-          duration: 100,
-        }
-      }
-    }
+    FactoryBot.rewind_sequences
+    problem = attributes_for(:problem, matrice: 0, point: 0, unit: 0, vehicle: 0, service: 0)
+    problem[:matrices] = [attributes_for(:matrice, time: [
+                                                          [0, 1, 1, 1],
+                                                          [1, 0, 1, 1],
+                                                          [1, 1, 0, 1],
+                                                          [1, 1, 1, 0]
+                                                         ])]
+    problem[:points] = [{
+                          id: "point_0",
+                          location: {
+                              lat: 44.853662,
+                              lon: -0.568542
+                          }
+                        }, {
+                          id: "point_1",
+                          location: {
+                              lat: 44.82332,
+                              lon: -0.607338
+                          }
+                        }, {
+                          id: "point_2",
+                          location: {
+                              lat: 44.83395,
+                              lon: -0.56545
+                          }
+                        }, {
+                          id: "point_3",
+                          location: {
+                              lat: 44.853662,
+                              lon: -0.568542
+                          }
+                      }]
+    problem[:vehicles] = [attributes_for(:vehicle, cost_time_multiplier: 1, end_point_id: 'point_3')]
+    problem[:services] = attributes_for_list(:service, 2, sticky_vehicle_ids: ['vehicle_0'])
+    problem[:configuration] = attributes_for(:configuration, duration: 10, max_split_size: 500)
+
     result = OptimizerWrapper.wrapper_vrp('demo', { services: { vrp: [:vroom] }}, Models::Vrp.create(problem), nil)
     assert result
   end
 
   def test_incorrect_matrix_indices
+    FactoryBot.rewind_sequences
     ortools = OptimizerWrapper::ORTOOLS
     vroom = OptimizerWrapper::VROOM
-    jsprit = OptimizerWrapper::JSPRIT
-    problem = {
-      matrices: [{
-        id: 'matrix_0',
-        distance: [
-          [0, 5, 11],
-          [5, 0, 11],
-          [11, 11, 0]
-        ]
-      }],
-      points: [{
-        id: 'point_0',
-        matrix_index: 0
-      }, {
-        id: 'point_1',
-        matrix_index: 1
-      }, {
-        id: 'point_2',
-        matrix_index: 2
-      }, {
-        id: 'point_3',
-        matrix_index: 3
-      }],
-      vehicles: [{
-        id: 'vehicle_0',
-        start_point_id: 'point_0',
-        matrix_id: 'matrix_0',
-        cost_time_multiplier:0,
-        cost_distance_multiplier: 1,
-        distance: 11
-      },{
-        id: 'vehicle_1',
-        start_point_id: 'point_0',
-        matrix_id: 'matrix_0',
-        cost_time_multiplier:0,
-        cost_distance_multiplier: 1,
-        distance: 10
-      }],
-      services: [{
-        id: 'service_1',
-        activity: {
-          point_id: 'point_1',
-        }
-      },{
-        id: 'service_2',
-        activity: {
-          point_id: 'point_2',
-        }
-      }],
-      configuration: {
-        resolution: {
-          duration: 10
-        },
-        restitution: {
-          intermediate_solutions: false,
-        }
-      }
-    }
+    problem = attributes_for(:problem, matrice: 0, point: 4, unit: 0, vehicle: 0, service: 2)
+    problem[:matrices] = [attributes_for(:matrice, distance: [
+                                                              [0, 5, 11],
+                                                              [5, 0, 11],
+                                                              [11, 11, 0]
+                                                             ])]
+    problem[:vehicles] = [attributes_for(:vehicle, cost_distance_multiplier: 1, cost_time_multiplier: 0, distance: 11),
+                          attributes_for(:vehicle, cost_distance_multiplier: 1, cost_time_multiplier: 0, distance: 10)]
+    problem[:configuration] = attributes_for(:configuration, duration: 10)
+
     vrp = Models::Vrp.create(problem)
     assert !ortools.inapplicable_solve?(vrp).empty?
     assert !vroom.inapplicable_solve?(vrp).empty?
-    assert !jsprit.inapplicable_solve?(vrp).empty?
   end
 
   def test_unassigned_presence
-    problem = {
-      units: [{
-        id: 'test',
-        label: 'test'
-      }],
-      matrices: [{
-        id: 'matrix_0',
-        distance: [
-          [0, 5, 2**32],
-          [5, 0, 2**32],
-          [2**32, 2**32, 0]
-        ]
-      }],
-      points: [{
-        id: 'point_0',
-        matrix_index: 0
-      }, {
-        id: 'point_1',
-        matrix_index: 1
-      }, {
-        id: 'point_2',
-        matrix_index: 2
-      }],
-      vehicles: [{
-        id: 'vehicle_0',
-        start_point_id: 'point_0',
-        matrix_id: 'matrix_0',
-        cost_time_multiplier: 0,
-        cost_distance_multiplier: 1,
-        capacities: [{
-          unit_id: 'test',
-          limit: 1
-        }],
-        timewindow: {
-          start: 0,
-          end: 100
-        }
-      }, {
-        id: 'vehicle_1',
-        start_point_id: 'point_0',
-        matrix_id: 'matrix_0',
-        cost_time_multiplier: 0,
-        cost_distance_multiplier: 1,
-        capacities: [{
-          unit_id: 'test',
-          limit: 1
-        }],
-        timewindow: {
-          start: 0,
-          end: 100
-        }
-      }],
-      services: [{
-        id: 'service_1',
-        activity: {
-          point_id: 'point_1',
-        },
-        quantities: [{
-          unit_id: 'test',
-          value: 1
-        }]
-      }, {
-        id: 'service_2',
-        activity: {
-          point_id: 'point_2',
-        }
-      }, {
-        id: 'service_3',
-        activity: {
-          point_id: 'point_1',
-        },
-        quantities: [{
-          unit_id: 'test',
-          value: 5
-        }]
-      }, {
-        id: 'service_4',
-        activity: {
-          point_id: 'point_1',
-          timewindows: [{
-            start: 200,
-            end: 205
-          }]
-        }
-      }, {
-        id: 'service_5',
-        visits_number: 2,
-        minimum_lapse: 1,
-        activity: {
-          point_id: 'point_1'
-        }
-      }],
-      configuration: {
-        resolution: {
-          duration: 10
-        },
-        restitution: {
-          intermediate_solutions: false,
-        },
-        schedule: {
-          range_indices: {
-            start: 0,
-            end: 0
-          }
-        }
-      }
-    }
+    FactoryBot.rewind_sequences
+    problem = attributes_for(:problem, matrice: 0, point: 3, unit: 1, vehicle: 0, service: 0)
+    problem[:matrices] = [attributes_for(:matrice, distance: [
+                                                              [0, 5, 2**32],
+                                                              [5, 0, 2**32],
+                                                              [2**32, 2**32, 0]
+                                                             ])]
+    problem[:vehicles] = attributes_for_list(:vehicle_with_capacity, 2, cost_time_multiplier: 0, cost_distance_multiplier: 1, limit: 1, timewindow: {start: 0, end: 100})
+    problem[:services] = [attributes_for(:service_with_capacity, value: 1),
+                          attributes_for(:service),
+                          attributes_for(:service_with_capacity, activity: {point_id: 'point_1'}, value: 5),
+                          attributes_for(:service, activity: {point_id: 'point_1', timewindows: [{start: 200, end: 205}]}),
+                          attributes_for(:service, visits_number: 2, minimum_lapse: 1, activity: {point_id: 'point_1'})]
+    problem[:configuration] = attributes_for(:configuration, duration: 10, range_indices: {start: 0, end: 0})
 
     result = OptimizerWrapper.wrapper_vrp('ortools', { services: { vrp: [:ortools] }}, Models::Vrp.create(problem), nil)
     assert_equal 1, result[:routes].collect{ |route| route[:activities].select{ |activity| !activity[:service_id].nil? }.size }.reduce(&:+)
@@ -2606,73 +924,13 @@ class WrapperTest < Minitest::Test
 
   def test_all_points_rejected_by_capacity
     ortools = OptimizerWrapper::ORTOOLS
-    problem = {
-      matrices: [{
-        id: 'matrix_0',
-        time: [
-          [0, 1, 1],
-          [1, 0, 1],
-          [1, 1, 0]
-        ]
-      }],
-      units: [{
-          id: "unit0",
-          label: "kg"
-      }],
-      points: [{
-        id: 'point_0',
-        matrix_index: 0
-      }, {
-        id: 'point_1',
-        matrix_index: 1
-      }, {
-        id: 'point_2',
-        matrix_index: 2
-      }],
-      vehicles: [{
-        id: 'vehicle_0',
-        start_point_id: 'point_0',
-        matrix_id: 'matrix_0',
-        capacities: [{
-          unit_id: "unit0",
-          limit: 2
-        }],
-        timewindow: {
-          start: 0,
-          end: 2
-        }
-      }],
-      services: [{
-        id: 'service_1',
-        activity: {
-          point_id: 'point_1'
-        },
-        quantities: [{
-          unit_id: "unit0",
-          value: 6
-        }]
-      }, {
-        id: 'service_2',
-        activity: {
-          point_id: 'point_2'
-        },
-        quantities: [{
-          unit_id: "unit0",
-          value: 3
-        }]
-      }],
-      schedule:{
-        range_indices:{
-          start: 0,
-          end: 2
-        }
-      },
-      configuration: {
-        resolution: {
-          duration: 10,
-        }
-      }
-    }
+    FactoryBot.rewind_sequences
+    problem = attributes_for(:problem, matrice: 1, point: 3, unit: 1, vehicle: 0, service: 0)
+    problem[:vehicles] = [attributes_for(:vehicle_with_capacity, limit: 2, timewindow: {start: 0, end: 2})]
+    problem[:services] = [attributes_for(:service_with_capacity, value: 6),
+                          attributes_for(:service_with_capacity, value: 3)]
+    problem[:configuration] = attributes_for(:configuration, duration: 10, range_indices: {start: 0, end: 2})
+
     Interpreters::PeriodicVisits.stub_any_instance(:expand, lambda{ |*a| raise}) do
       result = OptimizerWrapper.wrapper_vrp('demo', { services: { vrp: [:ortools] }}, Models::Vrp.create(problem), nil)
       assert_equal 2, result[:unassigned].size
@@ -2681,70 +939,13 @@ class WrapperTest < Minitest::Test
 
   def test_all_points_rejected_by_tw
     ortools = OptimizerWrapper::ORTOOLS
-    problem = {
-      matrices: [{
-        id: 'matrix_0',
-        time: [
-          [0, 1, 1],
-          [1, 0, 1],
-          [1, 1, 0]
-        ]
-      }],
-      units: [{
-          id: "unit0",
-          label: "kg"
-      }],
-      points: [{
-        id: 'point_0',
-        matrix_index: 0
-      }, {
-        id: 'point_1',
-        matrix_index: 1
-      }, {
-        id: 'point_2',
-        matrix_index: 2
-      }],
-      vehicles: [{
-        id: 'vehicle_0',
-        start_point_id: 'point_0',
-        matrix_id: 'matrix_0',
-        timewindow: {
-          start: 0,
-          end: 2
-        }
-      }],
-      services: [{
-        id: 'service_1',
-        visits_number: 2,
-        activity: {
-          point_id: 'point_1',
-          timewindows: [{
-              start: 3,
-              end: 4
-          }]
-        }
-      }, {
-        id: 'service_2',
-        activity: {
-          point_id: 'point_2',
-          timewindows: [{
-              start: 5,
-              end: 6
-          }]
-        }
-      }],
-      schedule:{
-        range_indices:{
-          start: 0,
-          end: 2
-        }
-      },
-      configuration: {
-        resolution: {
-          duration: 10,
-        }
-      }
-    }
+    FactoryBot.rewind_sequences
+    problem = attributes_for(:problem, matrice: 1, point: 3, unit: 0, vehicle: 0, service: 0)
+    problem[:vehicles] = [attributes_for(:vehicle, timewindow: {start: 0, end: 2})]
+    problem[:services] = [attributes_for(:service, visits_number: 2, timewindows: [{start: 3, end: 4}]),
+                          attributes_for(:service, timewindows: [{start: 5, end: 6}])]
+    problem[:configuration] = attributes_for(:configuration, duration: 10, range_indices: {start: 0, end: 2})
+
     Interpreters::PeriodicVisits.stub_any_instance(:expand, lambda{ |*a| raise}) do
       result = OptimizerWrapper.wrapper_vrp('demo', { services: { vrp: [:ortools] }}, Models::Vrp.create(problem), nil)
       assert_equal 3, result[:unassigned].size
@@ -2753,76 +954,13 @@ class WrapperTest < Minitest::Test
 
   def test_all_points_rejected_by_sequence_tw
     ortools = OptimizerWrapper::ORTOOLS
-    problem = {
-      matrices: [{
-        id: 'matrix_0',
-        time: [
-          [0, 1, 1],
-          [1, 0, 1],
-          [1, 1, 0]
-        ]
-      }],
-      units: [{
-          id: "unit0",
-          label: "kg"
-      }],
-      points: [{
-        id: 'point_0',
-        matrix_index: 0
-      }, {
-        id: 'point_1',
-        matrix_index: 1
-      }, {
-        id: 'point_2',
-        matrix_index: 2
-      }],
-      vehicles: [{
-        id: 'vehicle_0',
-        start_point_id: 'point_0',
-        matrix_id: 'matrix_0',
-        sequence_timewindows: [{
-          start: 6,
-          end: 10,
-          day_index: 2
-        },{
-          start: 0,
-          end: 5,
-          day_index: 0
-        }]
-      }],
-      services: [{
-        id: 'service_1',
-        activity: {
-          point_id: 'point_1',
-          timewindows: [{
-              start: 3,
-              end: 4,
-              day_index: 1
-          }]
-        }
-      }, {
-        id: 'service_2',
-        activity: {
-          point_id: 'point_2',
-          timewindows: [{
-              start: 4,
-              end: 5,
-              day_index: 2
-          }]
-        }
-      }],
-      schedule:{
-        range_indices:{
-          start: 0,
-          end: 2
-        }
-      },
-      configuration: {
-        resolution: {
-          duration: 10,
-        }
-      }
-    }
+    FactoryBot.rewind_sequences
+    problem = attributes_for(:problem, matrice: 1, point: 3, unit: 0, vehicle: 0, service: 0)
+    problem[:vehicles] = [attributes_for(:vehicle, sequence_timewindows: [{start: 6, end: 10, day_index: 2}, {start:0, end: 5, day_index:0}])]
+    problem[:services] = [attributes_for(:service, timewindows: [{start: 3, end: 4, day_index: 1}]),
+                          attributes_for(:service, timewindows: [{start: 4, end: 5, day_index: 2}])]
+    problem[:configuration] = attributes_for(:configuration, duration: 10, range_indices: {start: 0, end: 2})
+
     Interpreters::PeriodicVisits.stub_any_instance(:expand, lambda{ |*a| raise}) do
       result = OptimizerWrapper.wrapper_vrp('demo', { services: { vrp: [:ortools] }}, Models::Vrp.create(problem), nil)
       assert_equal 2, result[:unassigned].size
@@ -2831,70 +969,13 @@ class WrapperTest < Minitest::Test
 
   def test_all_points_rejected_by_lapse
     ortools = OptimizerWrapper::ORTOOLS
-    problem = {
-      matrices: [{
-        id: 'matrix_0',
-        time: [
-          [0, 1, 1],
-          [1, 0, 1],
-          [1, 1, 0]
-        ]
-      }],
-      units: [{
-          id: "unit0",
-          label: "kg"
-      }],
-      points: [{
-        id: 'point_0',
-        matrix_index: 0
-      }, {
-        id: 'point_1',
-        matrix_index: 1
-      }, {
-        id: 'point_2',
-        matrix_index: 2
-      }],
-      vehicles: [{
-        id: 'vehicle_0',
-        start_point_id: 'point_0',
-        matrix_id: 'matrix_0',
-        sequence_timewindows: [{
-          start: 6,
-          end: 10,
-          day_index: 2
-        },{
-          start: 0,
-          end: 5,
-          day_index: 0
-        }]
-      }],
-      services: [{
-        id: 'service_1',
-        visits_number: 2,
-        minimum_lapse: 4,
-        activity: {
-          point_id: 'point_1'
-        }
-      }, {
-        id: 'service_2',
-        visits_number: 4,
-        minimum_lapse: 1,
-        activity: {
-          point_id: 'point_2'
-        }
-      }],
-      schedule:{
-        range_indices:{
-          start: 0,
-          end: 2
-        }
-      },
-      configuration: {
-        resolution: {
-          duration: 10,
-        }
-      }
-    }
+    FactoryBot.rewind_sequences
+    problem = attributes_for(:problem, matrice: 1, point: 3, unit: 0, vehicle: 0, service: 0)
+    problem[:vehicles] = [attributes_for(:vehicle, sequence_timewindows: [{start: 6, end: 10, day_index: 2}, {start: 0, end: 5, day_index: 0}])]
+    problem[:services] = [attributes_for(:service, visits_number: 2, minimum_lapse: 4),
+                          attributes_for(:service, visits_number: 4, minimum_lapse: 1)]
+    problem[:configuration] = attributes_for(:configuration, duration: 10, range_indices: {start: 0, end: 2})
+
     Interpreters::PeriodicVisits.stub_any_instance(:expand, lambda{ |*a| raise}) do
       result = OptimizerWrapper.wrapper_vrp('demo', { services: { vrp: [:ortools] }}, Models::Vrp.create(problem), nil)
       assert_equal 6, result[:unassigned].size

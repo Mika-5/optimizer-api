@@ -19,6 +19,7 @@ gem 'rack-contrib'
 gem 'rest-client'
 gem 'activemodel', '<5' # Waiting Ruby 2.2
 gem 'active_hash', github: 'Mapotempo/active_hash'
+gem 'factory_bot'
 gem 'nokogiri'
 gem 'resque'
 gem 'resque-status'
