@@ -45,6 +45,7 @@ module Wrappers
         :assert_only_empty_or_fill_quantities,
         :assert_points_same_definition,
         :assert_vehicles_no_zero_duration,
+        :assert_uniq_vehicles,
         :assert_at_least_one_mission,
         :assert_services_no_timewindows_overlap,
         :assert_range_date_if_month_duration,

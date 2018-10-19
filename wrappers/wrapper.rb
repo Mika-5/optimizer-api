@@ -197,6 +197,12 @@ module Wrappers
       }
     end
 
+    def assert_uniq_vehicles(vrp)
+      vrp.vehicles.empty? || vrp.vehicles.collect{ |vehicle|
+        vehicle.id
+      }.uniq.size == vrp.vehicles.size
+    end
+
     def assert_services_no_late_multiplier(vrp)
       vrp.services.empty? || vrp.services.none?{ |service|
         service.activity.late_multiplier && service.activity.late_multiplier > 0
