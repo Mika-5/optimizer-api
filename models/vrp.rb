@@ -44,6 +44,7 @@ module Models
     field :resolution_allow_partial_assignment, default: true
     field :resolution_evaluate_only, default: false
     field :resolution_several_solutions, default: nil
+    field :resolution_only_first_solution, default: false
     field :resolution_variation_ratio, default: nil
 
     field :restitution_geometry, default: false
@@ -124,6 +125,7 @@ module Models
       self.resolution_allow_partial_assignment = resolution[:allow_partial_assignment]
       self.resolution_evaluate_only = resolution[:evaluate_only]
       self.resolution_several_solutions = resolution[:several_solutions]
+      self.resolution_only_first_solution = resolution[:only_first_solution]
       self.resolution_variation_ratio = resolution[:variation_ratio]
     end
 

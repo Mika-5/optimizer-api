@@ -47,12 +47,12 @@ module OptimizerWrapper
       }
 
       p = Result.get(self.uuid) || {}
-      if !services_vrps[0][:vrp][:resolution_several_solutions] && result && !@killed && (!p['result'] || result[:cost] && result[:cost] < p['result']['cost'])
+      if !services_vrps[0][:vrp][:resolution_several_solutions] && !services_vrps[0][:vrp][:resolution_only_first_solution] && result && !@killed && (!p['result'] || result[:cost] && result[:cost] < p['result']['cost'])
         p['result'] = result
       end
 
       # Add values related to the current solve status
-      if !services_vrps[0][:vrp][:resolution_several_solutions] && p && p['result'] && p['graph'] && !p['graph'].empty?
+      if !services_vrps[0][:vrp][:resolution_several_solutions] && !services_vrps[0][:vrp][:resolution_only_first_solution] && p && p['result'] && p['graph'] && !p['graph'].empty?
         p['result']['iterations'] = p['graph'].last['iteration']
         p['result']['elapsed'] = p['graph'].last['time']
       end

@@ -173,7 +173,7 @@ module OptimizerWrapper
     @unfeasible_services = []
 
     cluster_reference = 0
-    if services_vrps[0][:vrp][:resolution_several_solutions]
+    if services_vrps[0][:vrp][:resolution_several_solutions] || services_vrps[0][:vrp][:resolution_only_first_solution]
       services_vrps = Interpreters::Several_solutions.expand(services_vrps)
     end
     real_result = join_vrps(services_vrps, block) { |service, vrp, fleet_id, problem_size, block|
@@ -272,7 +272,7 @@ module OptimizerWrapper
                 elsif result.class.name == 'String' # result.is_a?(String) not working
                   raise RuntimeError.new(result) unless result == "Job killed"
                 elsif !vrp.preprocessing_heuristic_result || vrp.preprocessing_heuristic_result.empty?
-                  raise RuntimeError.new('No solution provided')
+                  raise RuntimeError.new('No solution provided') unless services_vrps[0][:vrp][:resolution_only_first_solution]
                 end
               end
             else
@@ -298,46 +298,48 @@ module OptimizerWrapper
         end
       end
 
-      current_usefull_vehicle = vrp.vehicles.select{ |vehicle|
-        associated_route = cluster_result[:routes].find{ |route| route[:vehicle_id] == vehicle.id }
-        associated_route[:activities].any?{ |activity| activity[:service_id] } if associated_route
-      } if cluster_result
-      if fleet_id && !services_fleets.empty? && !vrp[:vehicles].empty?
-        current_useless_vehicle = vrp.vehicles - current_usefull_vehicle
-        cluster_result[:routes].delete_if{ |route| route[:activities].none?{ |activity| activity[:service_id]}} if fleet_id && !services_fleets.empty?
-        cluster_result[:unassigned].delete_if{ |activity|
-          activity[:rest_id] && current_useless_vehicle.any?{ |vehicle| vehicle.rests.any?{ |rest| rest.id == activity[:rest_id] }}
-        } if cluster_result[:unassigned]
+      if !services_vrps[0][:vrp][:resolution_only_first_solution]
+        current_usefull_vehicle = vrp.vehicles.select{ |vehicle|
+          associated_route = cluster_result[:routes].find{ |route| route[:vehicle_id] == vehicle.id }
+          associated_route[:activities].any?{ |activity| activity[:service_id] } if associated_route
+        } if cluster_result
+        if fleet_id && !services_fleets.empty? && !vrp[:vehicles].empty?
+          current_useless_vehicle = vrp.vehicles - current_usefull_vehicle
+          cluster_result[:routes].delete_if{ |route| route[:activities].none?{ |activity| activity[:service_id]}} if fleet_id && !services_fleets.empty?
+          cluster_result[:unassigned].delete_if{ |activity|
+            activity[:rest_id] && current_useless_vehicle.any?{ |vehicle| vehicle.rests.any?{ |rest| rest.id == activity[:rest_id] }}
+          } if cluster_result[:unassigned]
 
-        vrp.vehicles = current_usefull_vehicle
-        current_fleet = services_fleets.find{ |service_fleet| service_fleet[:id] == fleet_id }
-        current_usefull_vehicle.each{ |vehicle| current_fleet[:fleet].delete(vehicle) }
+          vrp.vehicles = current_usefull_vehicle
+          current_fleet = services_fleets.find{ |service_fleet| service_fleet[:id] == fleet_id }
+          current_usefull_vehicle.each{ |vehicle| current_fleet[:fleet].delete(vehicle) }
 
-        cluster_result[:routes].each{ |route|
+          cluster_result[:routes].each{ |route|
 
-          vehicle = vrp.vehicles.find{ |vehicle| vehicle.id == route[:vehicle_id] }
-          capacities_units = vehicle.capacities.collect{ |capacity| capacity.unit_id if capacity.limit }.compact
-          previous = nil
-          previous_point = nil
-          route[:activities].delete_if{ |activity|
-            current_service = vrp.services.find{ |service| service[:id] == activity[:service_id] }
-            current_point = current_service.activity.point if current_service
+            vehicle = vrp.vehicles.find{ |vehicle| vehicle.id == route[:vehicle_id] }
+            capacities_units = vehicle.capacities.collect{ |capacity| capacity.unit_id if capacity.limit }.compact
+            previous = nil
+            previous_point = nil
+            route[:activities].delete_if{ |activity|
+              current_service = vrp.services.find{ |service| service[:id] == activity[:service_id] }
+              current_point = current_service.activity.point if current_service
 
-            if previous && current_service && same_position(vrp, previous_point, current_point) && same_empty_units(capacities_units, previous, current_service) &&
-            !same_fill_units(capacities_units, previous, current_service)
-              current_fleet[:empties].delete(previous)
-              true
-            elsif previous && current_service && same_position(vrp, previous_point, current_point) && same_fill_units(capacities_units, previous, current_service) &&
-            !same_empty_units(capacities_units, previous, current_service)
-              current_fleet[:fills].delete(previous)
-              true
-            else
-              previous = current_service if previous.nil? || activity[:service_id]
-              previous_point = current_point if previous.nil? || activity[:service_id]
-              false
-            end
+              if previous && current_service && same_position(vrp, previous_point, current_point) && same_empty_units(capacities_units, previous, current_service) &&
+              !same_fill_units(capacities_units, previous, current_service)
+                current_fleet[:empties].delete(previous)
+                true
+              elsif previous && current_service && same_position(vrp, previous_point, current_point) && same_fill_units(capacities_units, previous, current_service) &&
+              !same_empty_units(capacities_units, previous, current_service)
+                current_fleet[:fills].delete(previous)
+                true
+              else
+                previous = current_service if previous.nil? || activity[:service_id]
+                previous_point = current_point if previous.nil? || activity[:service_id]
+                false
+              end
+            }
           }
-        }
+        end
       end
 
       if vrp.preprocessing_partition_method
@@ -364,7 +366,7 @@ module OptimizerWrapper
         cluster_result
       end
     }
-    if !services_vrps[0][:vrp][:resolution_several_solutions]
+    if !services_vrps[0][:vrp][:resolution_several_solutions] && !services_vrps[0][:vrp][:resolution_only_first_solution]
       real_result[:unassigned] = (real_result[:unassigned] || []) + @unfeasible_services if real_result
       real_result[:name] = services_vrps[0][:vrp][:name]
     end
@@ -465,9 +467,9 @@ module OptimizerWrapper
       } : nil)
     }
 
-    if services_vrps[0][:vrp][:resolution_several_solutions]
+    if services_vrps[0][:vrp][:resolution_several_solutions] || services_vrps[0][:vrp][:resolution_only_first_solution]
       solution = []
-      (0..services_vrps[0][:vrp][:resolution_several_solutions]).each{ |i|
+      (0..(services_vrps[0][:vrp][:resolution_several_solutions] || 6)).each{ |i|
         solution[i] = [
           solvers: results[i][:solvers],
           cost: results[i][:cost],
@@ -478,7 +480,7 @@ module OptimizerWrapper
           total_value: results[i][:total_travel_value],
           total_distance: results[i][:total_distance],
           total_turnover: results[i][:total_turnover]
-        ]
+        ] if results[i]
       }
       solution
     else

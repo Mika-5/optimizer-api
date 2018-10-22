@@ -669,6 +669,7 @@ module Wrappers
         (vrp.resolution_evaluate_only ? '-time_out_multiplier 0' : (vrp.resolution_time_out_multiplier || @time_out_multiplier) && '-time_out_multiplier ' + (vrp.resolution_time_out_multiplier || @time_out_multiplier).to_s),
         vrp.resolution_vehicle_limit ? "-vehicle_limit #{vrp.resolution_vehicle_limit}" : nil,
         vrp.resolution_solver_parameter ? "-solver_parameter #{vrp.resolution_solver_parameter}" : nil,
+        vrp.resolution_only_first_solution ? "-only_first_solution #{vrp.resolution_only_first_solution}" : nil,
         vrp.restitution_intermediate_solutions ? "-intermediate_solutions" : nil,
         "-instance_file '#{input.path}'",
         "-solution_file '#{output.path}'"].compact.join(' ')
@@ -743,7 +744,7 @@ module Wrappers
           out
         end
       else
-        raise RuntimeError.new(result)
+        raise RuntimeError.new(result) unless vrp.resolution_only_first_solution
       end
     ensure
       input && input.unlink

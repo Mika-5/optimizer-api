@@ -132,10 +132,17 @@ module Interpreters
       return_service_vrp
     end
 
+    def self.generate_service_vrp_for_test(service_vrp, i)
+      return_service_vrp = service_vrp
+      return_service_vrp[:vrp][:resolution_solver_parameter] = i
+
+      return_service_vrp            
+    end
+
     def self.expand(services_vrps)
       service_vrp = []
 
-      if services_vrps[0][:vrp][:resolution_all_heuristic]
+      if services_vrps[0][:vrp][:resolution_only_first_solution]
         (0..6).each{ |i|
           service_vrp[i] = generate_service_vrp_for_test(Marshal::load(Marshal.dump(services_vrps[0])), i)
         }
