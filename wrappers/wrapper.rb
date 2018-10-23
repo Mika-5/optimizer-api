@@ -599,6 +599,19 @@ module Wrappers
       unfeasible
     end
 
+    def too_many_arguments(vrp)
+      if vrp[:vehicles] && !vrp[:vehicles].empty?
+        vrp[:vehicles].each{ |vehicle|
+          if (vehicle[:force_start] || vehicle[:shift_preference] == "force_start") && vehicle[:duration] && vehicle[:timewindow]
+            vehicle[:timewindow][:end] = vehicle[:timewindow][:start] + vehicle[:duration]
+            vehicle[:duration] = nil
+          end
+        }
+      end
+
+      vrp
+    end
+
     def kill
     end
   end
