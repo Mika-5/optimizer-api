@@ -612,6 +612,22 @@ module Wrappers
       vrp
     end
 
+    def unfeasible_services_with_lapse(vrp)
+      unfeasible = []
+      vrp.relations.select{ |r| r[:type] == "minimum_day_lapse" }.each{ |relation|
+        vrp[:services].select{ |s| s[:id] == relation[:linked_ids][1] && s[:minimum_lapse] && s[:maximum_lapse] && s[:visits_number] > 1 }.each{ |service|
+          day_indices = []
+          service[:activity][:timewindows].each { |tw|
+            day_indices << (tw[:start]/(24*3600)).to_i
+          }
+          if vrp.schedule_unavailable_indices && (relation[:lapse]..(relation[:lapse] + (service[:maximum_lapse] - service[:minimum_lapse])*(relation[:lapse]/service[:minimum_lapse]))).all?{ |i| vrp.schedule_unavailable_indices.include?(i) || !day_indices.include?(i % 7) }
+            unfeasible << add_unassigned(vrp, service, "Days between min lapse and max lapse unavailable")
+          end
+        }
+      }
+      unfeasible
+    end
+
     def kill
     end
   end

@@ -243,6 +243,9 @@ module OptimizerWrapper
             service[:detail][:skills] = service[:detail][:skills].to_a + ["cluster #{cluster_reference}"]
           }
 
+          vrp = config[:services][service].too_many_arguments(vrp)
+          @unfeasible_services += config[:services][service].unfeasible_services_with_lapse(vrp)
+
           if !vrp.services.empty? || !vrp.shipments.empty? || !vrp.rests.empty?
             periodic = Interpreters::PeriodicVisits.new(vrp)
             vrp = periodic.expand(vrp)
