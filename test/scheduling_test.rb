@@ -1219,8 +1219,7 @@ class HeuristicTest < Minitest::Test
       }
     }
     vrp = Models::Vrp.create(problem)
-    periodic = Interpreters::PeriodicVisits.new(vrp)
-    order = periodic.send(:solve_tsp, vrp)
+    order = SchedulingHeuristic::solve_tsp(vrp)
     assert_equal 1, order.size
   end
 
