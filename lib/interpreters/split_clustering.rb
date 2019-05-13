@@ -151,6 +151,7 @@ module Interpreters
     def self.split_solve(service_vrp, job = nil, &block)
       vrp = service_vrp[:vrp]
       available_vehicle_ids = vrp.vehicles.collect{ |vehicle| vehicle.id }
+      puts "----- available_vehicle_ids: #{available_vehicle_ids.size} - #{available_vehicle_ids}"
 
       problem_size = vrp.services.size + vrp.shipments.size
       empties_or_fills = (vrp.services.select{ |service| service.quantities.any?(&:fill) } +
@@ -182,7 +183,6 @@ module Interpreters
         sub_vrp.vehicles.select!{ |vehicle| available_vehicle_ids.include?(vehicle.id) }
         sub_result, sub_problem = OptimizerWrapper.define_process([sub_problem], job, &block)
         remove_poor_routes(sub_vrp, sub_result)
-        raise 'Incorrect activities count' if sub_problem[:vrp][:services].size != sub_result[:routes].flat_map{ |r| r[:activities].map{ |a| a[:service_id] } }.compact.size + sub_result[:unassigned].map{ |u| u[:service_id] }.compact.size
         available_vehicle_ids.delete_if{ |id| sub_result[:routes].collect{ |route| route[:vehicle_id] }.include?(id) }
         empties_or_fills_used = remove_used_empties_and_refills(empties_or_fills, sub_result).compact
         empties_or_fills -= empties_or_fills_used
@@ -192,6 +192,30 @@ module Interpreters
           sub_result[:unassigned].delete_if{ |activity| empties_or_fills_remaining.map{ |service| service.id }.include?(activity[:service_id]) }
         else
           sub_problem[:vrp].services += empties_or_fills
+        end
+        puts "---------- cluster (size: #{sub_problem[:vrp][:services].size}) uses #{sub_result[:routes].map{ |route| route[:vehicle_id] }.size} vehicles #{sub_result[:routes].map{ |route| route[:vehicle_id] }}, unassigned: #{sub_result[:unassigned].size}"
+        if sub_problem[:vrp][:services].size != sub_result[:routes].flat_map{ |r| r[:activities].map{ |a| a[:service_id] } }.compact.size + sub_result[:unassigned].map{ |u| u[:service_id] }.size
+          service_ids = []
+          sub_result[:unassigned].each{ |u|
+            if u[:service_id]
+              if service_ids.include? u[:service_id]
+                sub_result[:unassigned].delete(u)
+              else
+                service_ids << u[:service_id]
+              end
+            end
+          }
+          sub_result[:routes].each{ |r|
+            r[:activities].each{ |a|
+              if a[:service_id]
+                if service_ids.include? a[:service_id]
+                  r[:activities].delete(a)
+                else
+                  service_ids << a[:service_id]
+                end
+              end
+            }
+          }
         end
 
         result = Helper.merge_results([result, sub_result])
@@ -222,6 +246,7 @@ module Interpreters
         }
         vehicle_worktime = vehicle.duration || vehicle.timewindow&.start && vehicle.timewindow&.end && (vehicle.timewindow.end - vehicle.timewindow.start)
         route_duration = route[:total_time] || (route[:activities].last[:begin_time] - route[:activities].first[:begin_time])
+        puts "route #{route[:vehicle_id]} time: #{route_duration}/#{vehicle_worktime}" if vehicle_worktime
         time_flag = vehicle_worktime && route_duration < limit * vehicle_worktime
         if load_flag && time_flag
           result[:unassigned] += route[:activities].map{ |a| a.slice(:service_id, :pickup_shipment_id, :delivery_shipment_id, :detail).compact if a[:service_id] || a[:pickup_shipment_id] || a[:delivery_shipment_id] }.compact

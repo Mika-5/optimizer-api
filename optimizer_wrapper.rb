@@ -118,6 +118,10 @@ module OptimizerWrapper
 
   # Recursive method
   def self.define_process(services_vrps, job = nil, &block)
+    puts "--> define_process (#{services_vrps.size}) levels #{services_vrps.map{ |sv| sv[:level] }}"
+    t = Time.now
+    puts "min_durations #{services_vrps.map{ |sv| sv[:vrp].resolution_minimum_duration }} max_durations #{services_vrps.map{ |sv| sv[:vrp].resolution_duration }}"
+    puts "resolution_vehicle_limit: #{services_vrps.map{ |sv| sv[:vrp].resolution_vehicle_limit }}"
     filtered_services = services_vrps.delete_if{ |service_vrp| # TODO remove ?
       service_vrp[:vrp].services.empty? && service_vrp[:vrp].shipments.empty?
     }
@@ -145,10 +149,14 @@ module OptimizerWrapper
     result_global = {
       result: ([result] + duplicated_results + split_results + dicho_results).compact
     }
+    puts "<-- define_process levels #{services_vrps.map{ |sv| sv[:level] }} elapsed: #{(Time.now - t).round(2)}sec"
     [result_global[:result].size > 1 ? result_global[:result] : result_global[:result].first, services_vrps.first]
   end
 
   def self.solve(services_vrps, job = nil, block = nil)
+    puts "--> optim_wrap::solve (#{services_vrps.size}) levels #{services_vrps.map{ |sv| sv[:level] }}"
+    t = Time.now
+    puts "resolution_vehicle_limit: #{services_vrps.map{ |sv| sv[:vrp].resolution_vehicle_limit }}"
     unfeasible_services = []
     services_to_reinject = []
 
@@ -316,6 +324,8 @@ module OptimizerWrapper
     if real_result && services_vrps.any?{ |service_vrp| service_vrp[:vrp][:restitution_csv] }
       real_result[:csv] = true
     end
+
+    puts "<-- optim_wrap::solve elapsed: #{(Time.now - t).round(2)}sec"
 
     real_result
   rescue Resque::Plugins::Status::Killed
@@ -688,6 +698,8 @@ module OptimizerWrapper
         r[:total_distance]
       }.reduce(:+)
     end
+
+    puts "result - unassigned rate: #{result[:unassigned].size}/#{vrp.services.size} (#{(result[:unassigned].size.to_f / vrp.services.size * 100).round(1)}%), vehicles used: #{result[:routes].map{ |r| r[:vehicle_id] if r[:activities].any?{ |a| a[:service_id] } } }"
 
     result
   end

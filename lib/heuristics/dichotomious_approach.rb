@@ -116,9 +116,12 @@ module Interpreters
           result = Helper.merge_results(results)
           result[:unassigned] += unassigned_services.uniq
           result[:elapsed] += (t2 - t1) * 1000
+          puts "dicho - level(#{service_vrp[:level]}) A unassigned rate #{result[:unassigned].size}/#{service_vrp[:vrp].services.size}: #{(result[:unassigned].size.to_f / service_vrp[:vrp].services.size * 100).round(1)}%"
 
           remove_bad_skills(service_vrp, result)
           Interpreters::SplitClustering.remove_empty_routes(result)
+
+          puts "dicho - level(#{service_vrp[:level]}) B unassigned rate #{result[:unassigned].size}/#{service_vrp[:vrp].services.size}: #{(result[:unassigned].size.to_f / service_vrp[:vrp].services.size * 100).round(1)}%"
 
           result = end_stage_insert_unassigned(service_vrp, result, job)
           Interpreters::SplitClustering.remove_empty_routes(result)
@@ -126,8 +129,11 @@ module Interpreters
           if service_vrp[:level].zero?
             # Remove vehicles which are half empty
             Interpreters::SplitClustering.remove_empty_routes(result)
+            puts "dicho - before remove_poorly_populated_routes: #{result[:routes].size}"
             Interpreters::SplitClustering.remove_poorly_populated_routes(service_vrp[:vrp], result, 0.5)
+            puts "dicho - after remove_poorly_populated_routes: #{result[:routes].size}"
           end
+          puts "dicho - level(#{service_vrp[:level]}) C unassigned rate #{result[:unassigned].size}/#{service_vrp[:vrp].services.size}: #{(result[:unassigned].size.to_f / service_vrp[:vrp].services.size * 100).round(1)}%"
         end
       else
         service_vrp[:vrp].resolution_init_duration = nil
@@ -254,7 +260,9 @@ module Interpreters
     end
 
     def self.end_stage_insert_unassigned(service_vrp, result, job = nil)
+      puts '--> dicho::third_stage'
       if !result[:unassigned].empty?
+        puts "dicho::third_stage try to insert #{result[:unassigned].size} unassigned from #{service_vrp[:vrp].services.size} services"
         service_vrp[:vrp].routes = build_initial_routes([result])
         service_vrp[:vrp].resolution_init_duration = nil
         unassigned_services = service_vrp[:vrp].services.select{ |s| result[:unassigned].map{ |a| a[:service_id] }.include?(s.id) }
@@ -337,13 +345,16 @@ module Interpreters
           service_vrp[:vrp].routes += new_routes
         }
       end
+      puts '<-- dicho::third_stage'
       result
     end
 
     def self.split_vehicles(vrp, services_by_cluster)
+      puts "--> dicho::split_vehicles #{vrp.vehicles.size}"
       services_skills_by_clusters = services_by_cluster.map{ |services|
         services.map{ |s| s.skills.empty? ? nil : s.skills.uniq.sort }.compact.uniq
       }
+      puts "services_skills_by_clusters #{services_skills_by_clusters}"
       vehicles_by_clusters = [[], []]
       vrp.vehicles.each{ |v|
         cluster_index = nil
@@ -379,10 +390,12 @@ module Interpreters
         empty_side << nonempty_side.delete(nonempty_side.group_by{ |v| v.skills.uniq.sort }.to_a.max_by{ |vec_group| vec_group[1].size }.last.first)
       end
 
+      puts "<-- dicho::split_vehicles #{vehicles_by_clusters.map(&:size)}"
       vehicles_by_clusters
     end
 
     def self.split(service_vrp, job = nil, &block)
+      puts '--> dicho::split'
       vrp = service_vrp[:vrp]
       vrp.resolution_vehicle_limit ||= vrp.vehicles.size
       options = { max_iterations: 100, restarts: 5, cut_symbol: :duration, last_iteration_balance_rate: 0.0 }
