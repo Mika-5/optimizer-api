@@ -105,6 +105,7 @@ module Interpreters
     end
 
     def self.generate_split_vrps(service_vrp, job = nil, block)
+      puts "--> generate_split_vrps"
       vrp = service_vrp[:vrp]
       if vrp.preprocessing_partitions && !vrp.preprocessing_partitions.empty?
         current_service_vrps = [service_vrp]
@@ -246,7 +247,7 @@ module Interpreters
         }
         vehicle_worktime = vehicle.duration || vehicle.timewindow&.start && vehicle.timewindow&.end && (vehicle.timewindow.end - vehicle.timewindow.start)
         route_duration = route[:total_time] || (route[:activities].last[:begin_time] - route[:activities].first[:begin_time])
-        puts "route #{route[:vehicle_id]} time: #{route_duration}/#{vehicle_worktime}" if vehicle_worktime
+        puts "route #{route[:vehicle_id]} time: #{route_duration}/#{vehicle_worktime} percent: #{((route_duration.to_f / vehicle_worktime) * 100).to_i}%" if vehicle_worktime
         time_flag = vehicle_worktime && route_duration < limit * vehicle_worktime
         if load_flag && time_flag
           result[:unassigned] += route[:activities].map{ |a| a.slice(:service_id, :pickup_shipment_id, :delivery_shipment_id, :detail).compact if a[:service_id] || a[:pickup_shipment_id] || a[:delivery_shipment_id] }.compact
@@ -384,6 +385,7 @@ module Interpreters
     end
 
     def self.split_balanced_kmeans(service_vrp, nb_clusters, options = {}, &block)
+      puts "--> split_balanced_kmeans"
       default_options = { max_iterations: 300, restarts: 50, cut_symbol: :duration }
       options = default_options.merge(options)
       empties_or_fills = (service_vrp[:vrp].services.select{ |service| service.quantities.any?(&:fill) } +
@@ -413,7 +415,10 @@ module Interpreters
         options[:possible_caracteristics] = vrp.vehicles.collect{ |vehicle| vehicle[:skills] }.to_a
         options[:expected_caracteristics] = generate_expected_caracteristics(vrp.vehicles)
         options[:output_centroids] = vrp.debug_output_clusters
+        puts "--> kmeans_process"
+        tic = Time.now
         clusters, _centroids, centroid_caracteristics = kmeans_process(centroids, nb_clusters, data_items, unit_symbols, limits, options, &block)
+        puts "CLUSTERING TOTAL TIME #{toc-tic}"
 
         result_items = clusters.delete_if{ |cluster| cluster.data_items.empty? }.collect{ |cluster|
           cluster.data_items.flat_map{ |i|

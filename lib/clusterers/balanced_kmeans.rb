@@ -105,6 +105,9 @@ module Ai4r
           calculate_membership_clusters
         end
 
+        puts "Clustering converged after #{@iterations} iterations."
+
+        puts "Iters #{@iterations} / #{@max_iterations}"
         self
       end
 

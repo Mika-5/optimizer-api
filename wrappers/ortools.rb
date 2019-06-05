@@ -87,6 +87,7 @@ module Wrappers
     end
 
     def solve(vrp, job, thread_proc = nil, &block)
+      tic = Time.now
       order_relations = vrp.relations.select{ |relation| relation.type == 'order' }
       already_begin = order_relations.collect{ |relation| relation.linked_ids[0..-2] }.flatten
       duplicated_begins = already_begin.uniq.select{ |linked_id| already_begin.select{ |link| link == linked_id }.size > 1 }
@@ -441,6 +442,8 @@ module Wrappers
         relations: relations,
         routes: routes
       )
+
+      puts "ortools::solve_create_problem takes #{Time.now - tic}"
       ret = run_ortools(problem, vrp, services, points, matrix_indices, thread_proc, &block)
       case ret
       when String
@@ -745,6 +748,7 @@ module Wrappers
     end
 
     def run_ortools(problem, vrp, services, points, matrix_indices, thread_proc = nil, &block)
+      tic = Time.now
       puts "----> run_ortools services(#{services.size}) preassigned(#{vrp.routes.flat_map{ |r| r[:mission_ids].size }.sum}) vehicles(#{vrp.vehicles.size})"
       if vrp.vehicles.size == 0 || (vrp.services.nil? || vrp.services.size == 0) && (vrp.shipments.nil? || vrp.shipments.size == 0)
         return [0, 0, @previous_result = parse_output(vrp, services, points, matrix_indices, 0, 0, nil)]
@@ -856,6 +860,7 @@ module Wrappers
       stdin.close if stdin
       stdout_and_stderr.close if stdout_and_stderr
       pipe.close if pipe
+      puts "ortools::run_ortools takes #{Time.now - tic}"
     end
   end
 end

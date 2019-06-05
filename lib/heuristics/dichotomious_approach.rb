@@ -242,6 +242,7 @@ module Interpreters
     end
 
     def self.remove_bad_skills(service_vrp, result)
+      puts "------> remove_bad_skills"
       result[:routes].each{ |r|
         r[:activities].each{ |a|
           if a[:service_id]
@@ -249,6 +250,7 @@ module Interpreters
             vehicle = service_vrp[:vrp].vehicles.find{ |v| v.id == r[:vehicle_id] }
             if service && !service.skills.empty?
               if vehicle.skills.all?{ |xor_skills| (service.skills & xor_skills).size != service.skills.size }
+                puts "Removed service #{a[:service_id]} from vehicle #{r[:vehicle_id]}"
                 result[:unassigned] << a
                 r[:activities].delete(a)
               end
@@ -257,6 +259,7 @@ module Interpreters
           end
         }
       }
+      puts "<----- remove_bad_skills"
     end
 
     def self.end_stage_insert_unassigned(service_vrp, result, job = nil)

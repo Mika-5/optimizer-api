@@ -22,6 +22,8 @@ require 'redis'
 require 'json'
 require 'thread'
 
+#require 'benchmark/ips'
+
 require './util/job_manager.rb'
 
 require './lib/routers/router_wrapper.rb'
@@ -196,14 +198,21 @@ module OptimizerWrapper
           }
         else
           puts "Solving #{cluster_reference + 1}/#{services_vrps.size}"
+          services_to_reinject = []
+          tic = Time.now
           sub_unfeasible_services = config[:services][service].detect_unfeasible_services(vrp)
+          puts "detect_unfeasible_services takes #{Time.now - tic}"
 
+          tic = Time.now
           vrp.compute_matrix(&block)
+          puts "compute_vrp_need_matrix takes #{Time.now - tic}"
 
           sub_unfeasible_services = config[:services][service].check_distances(vrp, sub_unfeasible_services)
           unfeasible_services += sub_unfeasible_services
 
+          tic = Time.now
           vrp = config[:services][service].simplify_constraints(vrp)
+          puts "simplify_constraints takes #{Time.now - tic}"
 
           if !vrp.services.empty? || !vrp.shipments.empty? || !vrp.rests.empty?
             unfeasible_services.each{ |una_service|
@@ -222,7 +231,10 @@ module OptimizerWrapper
             if vrp.preprocessing_partitions.any?{ |partition| partition[:entity] == 'work_day' }
               add_day_skill(vrp.vehicles.first, vrp.preprocessing_heuristic_result, unfeasible_services)
             end
+            puts "PeriodicVisits takes #{Time.now - tic}"
+            block.call(nil, nil, nil, "process #{cluster_reference + 1}/#{services_vrps.size}", nil, nil, nil) if block && vrp.preprocessing_first_solution_strategy.to_a.first == 'periodic'
             if vrp.resolution_solver_parameter != -1 && vrp.resolution_solver && !vrp.preprocessing_first_solution_strategy.to_a.include?('periodic')
+              tic = Time.now
               block.call(nil, nil, nil, 'process heuristic choice', nil, nil, nil) if block && vrp.preprocessing_first_solution_strategy
               # Select best heuristic
               Interpreters::SeveralSolutions.custom_heuristics(service, vrp, job, block)
@@ -236,6 +248,7 @@ module OptimizerWrapper
                 una_service[:detail][:skills] = una_service[:detail][:skills].to_a + ["cluster #{cluster_reference}"]
               }
               block.call(nil, nil, nil, 'process clustering', nil, nil, nil) if block && vrp.preprocessing_cluster_threshold
+              puts "custom_heuristics takes #{Time.now - tic}"
               cluster_result = cluster(vrp, vrp.preprocessing_cluster_threshold, vrp.preprocessing_force_cluster) do |cluster_vrp|
                 block.call(nil, 0, nil, 'run optimization', nil, nil, nil) if block && !vrp.dichotomious_process?
                 time_start = Time.now
@@ -282,6 +295,7 @@ module OptimizerWrapper
       # Reintegrate unfeasible services deleted from vrp.services to help ortools
       vrp.services += services_to_reinject
 
+      tic = Time.now
       if vrp.preprocessing_partition_method || !vrp.preprocessing_partitions.empty?
         # add associated cluster as skill
         [cluster_result, vrp.preprocessing_heuristic_result].each{ |solution|
@@ -302,18 +316,21 @@ module OptimizerWrapper
         }
       end
       cluster_reference += 1
-      if vrp.preprocessing_heuristic_result && !vrp.preprocessing_heuristic_result.empty?
-        if [cluster_result, vrp.preprocessing_heuristic_result].all?{ |result| result.nil? || result[:routes].empty? }
-          cluster_result || parse_result(vrp, vrp[:preprocessing_heuristic_result])
-        else
-          [cluster_result || parse_result(vrp, vrp[:preprocessing_heuristic_result]), parse_result(vrp, vrp[:preprocessing_heuristic_result])].select{ |result| !result[:routes].empty? }.sort_by{ |sol| sol[:cost] }.first
-        end
-      else
-        Cleanse::cleanse(vrp, cluster_result)
-        cluster_result
-      end
+      res = if vrp.preprocessing_heuristic_result && !vrp.preprocessing_heuristic_result.empty?
+              if [cluster_result, vrp.preprocessing_heuristic_result].all?{ |result| result.nil? || result[:routes].empty? }
+                cluster_result || parse_result(vrp, vrp[:preprocessing_heuristic_result])
+              else
+                [cluster_result || parse_result(vrp, vrp[:preprocessing_heuristic_result]), parse_result(vrp, vrp[:preprocessing_heuristic_result])].select{ |result| !result[:routes].empty? }.sort_by{ |sol| sol[:cost] }.first
+              end
+            else
+              Cleanse::cleanse(vrp, cluster_result)
+              cluster_result
+            end
+      puts "result_handling_1 takes #{Time.now - tic}"
+      res
     }
 
+    tic = Time.now
     real_result[:unassigned] = (real_result[:unassigned] || []) + unfeasible_services if real_result
     real_result[:name] = services_vrps[0][:vrp][:name] if real_result
     if real_result && services_vrps.any?{ |service| service[:vrp][:preprocessing_first_solution_strategy] }
@@ -324,6 +341,7 @@ module OptimizerWrapper
     if real_result && services_vrps.any?{ |service_vrp| service_vrp[:vrp][:restitution_csv] }
       real_result[:csv] = true
     end
+    puts "result_handling_2 takes #{Time.now - tic}"
 
     puts "<-- optim_wrap::solve elapsed: #{(Time.now - t).round(2)}sec"
 
@@ -656,6 +674,8 @@ module OptimizerWrapper
   end
 
   def self.parse_result(vrp, result)
+    tic_parse_result = Time.now
+    route_total_dimension_time = 0.0
     result[:routes].each{ |r|
       details = nil
       v = vrp.vehicles.find{ |v| v.id == r[:vehicle_id] }
@@ -664,13 +684,19 @@ module OptimizerWrapper
       end
       matrix = vrp.matrices.find{ |mat| mat.id == v.matrix_id }
       if matrix.time
+        #tic = Time.now
         r[:total_travel_time] = route_total_dimension(vrp, r, v, :time)
+        #route_total_dimension_time += Time.now - tic
       end
       if matrix.value
+        #tic = Time.now
         r[:total_travel_value] = route_total_dimension(vrp, r, v, :value)
+        #route_total_dimension_time += Time.now - tic
       end
       if matrix.distance
+        #tic = Time.now
         r[:total_distance] = route_total_dimension(vrp, r, v, :distance)
+        #route_total_dimension_time += Time.now - tic
       elsif matrix[:distance].nil? && r[:activities].size > 1 && vrp.points.all?(&:location)
         details = route_details(vrp, r, v)
         if details && !details.empty?
@@ -682,6 +708,36 @@ module OptimizerWrapper
           }
         end
       end
+      # Benchmark.ips do |x|
+      #   x.config(:time => 5, :warmup => 2)
+      #   x.report('mat') {
+      #     matrix = vrp.matrices.find{ |mat| mat.id == v.matrix_id }
+      #     if matrix.time
+      #       #r[:total_travel_time] = route_total_dimension(vrp, r, v, :time)
+      #     end
+      #     if matrix.value
+      #       #r[:total_travel_value] = route_total_dimension(vrp, r, v, :value)
+      #     end
+      #   }
+      #   x.report('index') {
+      #     matrix_index = vrp.matrices.index{ |mat| mat.id == v.matrix_id }
+      #     if vrp.matrices[matrix_index].time
+      #       #r[:total_travel_time] = route_total_dimension(vrp, r, v, :time)
+      #     end
+      #     if vrp.matrices[matrix_index].value
+      #       #r[:total_travel_value] = route_total_dimension(vrp, r, v, :value)
+      #     end
+      #   }
+      #   x.report('find') {
+      #     if vrp.matrices.find{ |mat| mat.id == v.matrix_id }.time
+      #       #r[:total_travel_time] = route_total_dimension(vrp, r, v, :time)
+      #     end
+      #     if vrp.matrices.find{ |mat| mat.id == v.matrix_id }.value
+      #       #r[:total_travel_value] = route_total_dimension(vrp, r, v, :value)
+      #     end
+      #   }
+      #   x.compare!
+      # end
       if vrp.restitution_geometry && r[:activities].size > 1
         details = route_details(vrp, r, v) if details.nil?
         r[:geometry] = details.map(&:last) if details
@@ -699,6 +755,8 @@ module OptimizerWrapper
       }.reduce(:+)
     end
 
+    puts "optim_wrapper::parse_result takes #{Time.now - tic_parse_result}"
+    #puts "optim_wrapper::parse_result_route_total_dimension takes #{route_total_dimension_time}"
     puts "result - unassigned rate: #{result[:unassigned].size}/#{vrp.services.size} (#{(result[:unassigned].size.to_f / vrp.services.size * 100).round(1)}%), vehicles used: #{result[:routes].map{ |r| r[:vehicle_id] if r[:activities].any?{ |a| a[:service_id] } } }"
 
     result
