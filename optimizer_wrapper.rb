@@ -291,7 +291,7 @@ module OptimizerWrapper
                   raise RuntimeError.new('No solution provided') unless vrp.restitution_allow_empty_result
                 end
               end
-            else
+            elsif job
               actual_result = Result.get(job) || {}
               Result.set(job, actual_result)
             end
