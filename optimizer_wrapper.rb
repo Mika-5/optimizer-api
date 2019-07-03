@@ -405,7 +405,9 @@ module OptimizerWrapper
 
   def self.job_kill(api_key, id)
     res = Result.get(id)
-    Resque::Plugins::Status::Hash.kill(id)
+    Resque::Plugins::Status::Hash.kill(id) # Worker will be killed at the next call of at() method
+
+    # Only kill the solver process if a pid has been set
     if res && res['pids'] && !res['pids'].empty?
       res['pids'].each{ |pid|
         begin
@@ -415,6 +417,7 @@ module OptimizerWrapper
         end
       }
     end
+
     @killed = true
   end
 
