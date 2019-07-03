@@ -395,7 +395,7 @@ module OptimizerWrapper
           uuid: job.uuid,
           status: job.status,
           avancement: job.message,
-          checksum: job.options['checksum']
+          checksum: job.options && job.options['checksum']
         }
       else
         Result.remove(api_key, e)
