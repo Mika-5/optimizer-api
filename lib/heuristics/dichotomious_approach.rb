@@ -406,7 +406,9 @@ module Interpreters
       split_service_vrps = []
       if services_by_cluster.size == 2
         # Kmeans return 2 vrps
+        dicosplitvec = Time.now
         vehicles_by_cluster = split_vehicles(vrp, [services_by_cluster.first[:vrp].services, services_by_cluster.second[:vrp].services])
+        puts "DICHO SPLIT VEHICLE   ---   #{Time.now - dicosplitvec}"
         if vehicles_by_cluster[1].size > vehicles_by_cluster[0].size
           services_by_cluster.reverse
           vehicles_by_cluster.reverse

@@ -271,11 +271,6 @@ module Interpreters
     end
 
     def self.build_partial_service_vrp(service_vrp, partial_service_ids, available_vehicle_ids = nil)
-      # WARNING: Below we do marshal dump load but we continue using original objects
-      # That is, if these objects are modified in sub_vrp then they will be modified in vrp too.
-      # However, since original objects are coming from the data and we shouldn't be modifiying them, this doesn't pose a problem.
-      # TOD0: Here we do Marshal.load/dump but we continue to use the original objects (and there is no bugs related to that)
-      # That means we don't need hard copy of obejcts we just need to cut the connection between arrays (like services points etc) that we want to modify.
       vrp = service_vrp[:vrp]
       sub_vrp = Marshal::load(Marshal.dump(vrp))
       sub_vrp.id = Random.new

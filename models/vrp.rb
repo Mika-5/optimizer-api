@@ -272,9 +272,12 @@ module Models
 
       case type
       when :time
+        tic = Time.now
         tsp = TSPHelper::create_tsp(self, vehicles.first)
         result = TSPHelper::solve(tsp)
         total_travel_time = result[:cost]
+
+        zizou = Time.now
 
         total_vehicle_work_time = vehicles.map{ |vehicle| vehicle[:duration] || vehicle[:timewindow][:end] - vehicle[:timewindow][:start] }.reduce(:+)
         average_vehicles_work_time = total_vehicle_work_time / vehicles.size.to_f
@@ -323,6 +326,7 @@ module Models
         vehicles.each{ |vehicle|
           vehicle.cost_fixed = [total_exclusion_cost / approximate_number_of_vehicles_used, 1000000].min
         }
+        puts "calculate_service_exclusion_costs_rest takes #{Time.now - zizou}"
       when :distance
         raise 'Distance based exclusion cost calculation is not ready'
       when :capacity
