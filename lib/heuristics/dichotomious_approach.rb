@@ -46,6 +46,7 @@ module Interpreters
 
     def self.dichotomious_heuristic(service_vrp, job = nil, &block)
       if dichotomious_candidate?(service_vrp)
+        puts "COMBIEN IL Y A DE SERVICE : #{service_vrp[:vrp].services.size}"
         set_config(service_vrp)
         t1 = Time.now
         # Must be called to be sure matrices are complete in vrp and be able to switch vehicles between sub_vrp
@@ -62,7 +63,7 @@ module Interpreters
           service_vrp[:vrp].calculate_service_exclusion_costs(:time, true)
           update_exlusion_cost(service_vrp)
         end
-
+        puts "COMBIEN IL Y A DE SERVICE : #{service_vrp[:vrp].services.size}"
         t2 = Time.now
         if (result.nil? || result[:unassigned].size >= 0.7 * service_vrp[:vrp].services.size) && feasible_vrp(result, service_vrp) &&
            service_vrp[:vrp].vehicles.size > service_vrp[:vrp].resolution_dicho_division_vec_limit && service_vrp[:vrp].services.size > 100 &&
@@ -115,17 +116,20 @@ module Interpreters
           end
           result = Helper.merge_results(results)
           result[:unassigned] += unassigned_services.uniq
+          byebug if service_vrp[:vrp][:services].size != result[:routes].flat_map{ |r| r[:activities].map{ |a| a[:service_id] } }.compact.size + result[:unassigned].map{ |u| u[:service_id] }.size
           result[:elapsed] += (t2 - t1) * 1000
           puts "dicho - level(#{service_vrp[:level]}) A unassigned rate #{result[:unassigned].size}/#{service_vrp[:vrp].services.size}: #{(result[:unassigned].size.to_f / service_vrp[:vrp].services.size * 100).round(1)}%"
 
           remove_bad_skills(service_vrp, result)
           Interpreters::SplitClustering.remove_empty_routes(result)
 
+          byebug if service_vrp[:vrp][:services].size != result[:routes].flat_map{ |r| r[:activities].map{ |a| a[:service_id] } }.compact.size + result[:unassigned].map{ |u| u[:service_id] }.size
           puts "dicho - level(#{service_vrp[:level]}) B unassigned rate #{result[:unassigned].size}/#{service_vrp[:vrp].services.size}: #{(result[:unassigned].size.to_f / service_vrp[:vrp].services.size * 100).round(1)}%"
 
           result = end_stage_insert_unassigned(service_vrp, result, job)
+          byebug if service_vrp[:vrp][:services].size != result[:routes].flat_map{ |r| r[:activities].map{ |a| a[:service_id] } }.compact.size + result[:unassigned].map{ |u| u[:service_id] }.size
           Interpreters::SplitClustering.remove_empty_routes(result)
-
+          byebug if service_vrp[:vrp][:services].size != result[:routes].flat_map{ |r| r[:activities].map{ |a| a[:service_id] } }.compact.size + result[:unassigned].map{ |u| u[:service_id] }.size
           if service_vrp[:level].zero?
             # Remove vehicles which are half empty
             Interpreters::SplitClustering.remove_empty_routes(result)
