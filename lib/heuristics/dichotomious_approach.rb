@@ -50,9 +50,11 @@ module Interpreters
           service_vrp[:vrp].calculate_service_exclusion_costs(:time, true)
           update_exlusion_cost(service_vrp)
         else
-          service_vrp[:vrp].calculate_service_exclusion_costs(:time, true)
-          update_exlusion_cost(service_vrp)
-          result = OptimizerWrapper.solve([service_vrp], job, block)
+          if service_vrp[:vrp].resolution_init_duration.nil?
+            service_vrp[:vrp].calculate_service_exclusion_costs(:time, true)
+            update_exlusion_cost(service_vrp)
+            result = OptimizerWrapper.solve([service_vrp], job, block)
+          end
         end
 
         t2 = Time.now
