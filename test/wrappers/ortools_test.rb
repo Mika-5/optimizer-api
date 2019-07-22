@@ -6150,4 +6150,14 @@ class Wrappers::OrtoolsTest < Minitest::Test
     result = OptimizerWrapper.wrapper_vrp('ortools', { services: { vrp: [:ortools] }}, vrp, nil)
     assert vrp[:services].size == result[:routes].flat_map{ |r| r[:activities].map{ |a| a[:service_id] } }.compact.size + result[:unassigned].map{ |u| u[:service_id] }.size
   end
+
+  def test_compute_several_solutions
+    problem = VRP.basic
+    problem[:configuration][:resolution][:several_solutions] = 2
+    problem[:configuration][:resolution][:variation_ratio] = 25
+
+    vrp = Models::Vrp.create(problem)
+    result = OptimizerWrapper.wrapper_vrp('ortools', { services: { vrp: [:ortools] }}, vrp, nil)
+    assert_equal result.size, vrp.resolution_several_solutions
+  end
 end
