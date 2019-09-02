@@ -27,8 +27,8 @@ module Api
 
       private
 
-      def self.dump_vrp_cache
-        ::OptimizerWrapper::dump_vrp_cache
+      def self.dump_vrp_dir
+        ::OptimizerWrapper::dump_vrp_dir
       end
 
       def self.services(api_key)
