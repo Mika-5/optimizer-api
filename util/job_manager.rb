@@ -49,7 +49,7 @@ module OptimizerWrapper
       p = Result.get(self.uuid) || {}
       p['csv'] = true if ask_restitution_csv
       p['result'] = [result].flatten #TODO define process must only return an array (Need tests edit)
-      if services_vrps.size == 1 && p['graph'] && !p['graph'].empty?
+      if services_vrps.size == 1 && p && p['result'] && p['graph'] && !p['graph'].empty?
         p['result'].first['iterations'] = p['graph'].last['iteration']
         p['result'].first['elapsed'] = p['graph'].last['time']
       end
