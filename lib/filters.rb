@@ -173,12 +173,20 @@ module Filters
         new_timewindows = []
         if service.activity.timewindows.size > 1
           service.activity.timewindows.each{ |timewindow|
+            if timewindow && !timewindow.start
+              timewindow.start = 0
+            end
+            if timewindow && !timewindow.end
+              timewindow.end = 86400
+            end
             unified_timewindows[timewindow.id] = {
               start: timewindow.start && ((timewindow.day_index || 0) * 86400 + timewindow.start) || (0 + (timewindow.day_index || 0) * 86400),
               end: timewindow.end && ((timewindow.day_index || 0) * 86400 + timewindow.end) || (0 + (1 + (timewindow.day_index || 6)) * 86400)
             }
             inter[timewindow.id] = []
           }
+          service.activity.timewindows.sort_by!(&:start)
+
           unified_timewindows.each{ |key, value|
             unified_timewindows.each{ |s_key, s_value|
               next if key == s_key || s_value.include?(key) || value.include?(s_key)

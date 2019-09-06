@@ -213,4 +213,27 @@ class FiltersTest < Minitest::Test
       OptimizerWrapper.wrapper_vrp('demo', {services: {vrp: [:ortools] }}, Models::Vrp.create(prob), nil)
     end
   end
+
+  def test_services_timewindows_order
+    vrp = VRP.basic
+    vrp[:services].first[:activity][:timewindows] = [
+      {
+          "start": 64800,
+          "end": 93600
+      },
+      {
+          "start": nil,
+          "end": 10
+      }
+    ]
+
+    problem = Models::Vrp.create(vrp)
+    OptimizerWrapper.wrapper_vrp('test', {services: {vrp: [:ortools] }}, problem, nil)
+
+    problem.services.each{ |service|
+      next if !service.activity.timewindows.first || !service.activity.timewindows.second
+
+      assert service.activity.timewindows.first.start < service.activity.timewindows.second.start
+    }
+  end
 end
