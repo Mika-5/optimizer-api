@@ -69,7 +69,7 @@ module Interpreters
            service_vrp[:vrp].vehicles.size > service_vrp[:vrp].resolution_dicho_division_vec_limit && service_vrp[:vrp].services.size > 100
           sub_service_vrps = []
           loop do
-            sub_service_vrps = split(service_vrp, job)
+            sub_service_vrps = split(service_vrp, job, &block)
             break if sub_service_vrps.size == 2
           end
           results = sub_service_vrps.map.with_index{ |sub_service_vrp, index|
@@ -340,101 +340,41 @@ module Interpreters
       vehicles_by_clusters
     end
 
-    def self.split(service_vrp, job = nil)
+    def self.split(service_vrp, job = nil, &block)
       vrp = service_vrp[:vrp]
       vrp.resolution_vehicle_limit ||= vrp.vehicles.size
-      services_by_cluster = kmeans(vrp, :duration).sort_by{ |ss| Helper.services_duration(ss) }
+      options = { max_iterations: 100, restarts: 5, cut_symbol: :duration, last_iteration_balance_rate: 0.0 }
+      services_by_cluster = SplitClustering.split_balanced_kmeans(service_vrp, 2, options, &block)
       split_service_vrps = []
       if services_by_cluster.size == 2
         # Kmeans return 2 vrps
-        vehicles_by_cluster = split_vehicles(vrp, services_by_cluster)
+        vehicles_by_cluster = split_vehicles(vrp, [services_by_cluster.first[:vrp].services, services_by_cluster.second[:vrp].services])
         if vehicles_by_cluster[1].size > vehicles_by_cluster[0].size
           services_by_cluster.reverse
           vehicles_by_cluster.reverse
         end
-        [0, 1].each{ |i|
-          sub_vrp = SplitClustering.build_partial_service_vrp(service_vrp, services_by_cluster[i].map(&:id), vehicles_by_cluster[i].map(&:id))[:vrp]
-
+        services_by_cluster.each_with_index{ |sub_service_vrp, i|
+          sub_service_vrp[:vrp] = SplitClustering.build_partial_service_vrp(service_vrp, sub_service_vrp[:vrp].services.map(&:id), vehicles_by_cluster[i].map(&:id))[:vrp]
           # TODO: à cause de la grande disparité du split_vehicles par skills, on peut rapidement tomber à 1...
-          sub_vrp.resolution_vehicle_limit = [sub_vrp.vehicles.size, vrp.vehicles.empty? ? 0 : (sub_vrp.vehicles.size / vrp.vehicles.size.to_f * vrp.resolution_vehicle_limit).ceil].min
-          sub_vrp.preprocessing_first_solution_strategy = ['self_selection'] # ???
-          sub_vrp.resolution_split_number += i
-          sub_vrp.resolution_total_split_number += 1
+          sub_service_vrp[:vrp].resolution_vehicle_limit = [sub_service_vrp[:vrp].vehicles.size, vrp.vehicles.empty? ? 0 : (sub_service_vrp[:vrp].vehicles.size / vrp.vehicles.size.to_f * vrp.resolution_vehicle_limit).ceil].min
+          sub_service_vrp[:vrp].preprocessing_first_solution_strategy = ['self_selection'] # ???
+          sub_service_vrp[:vrp].resolution_split_number += i
+          sub_service_vrp[:vrp].resolution_total_split_number += 1
 
           split_service_vrps << {
             service: service_vrp[:service],
-            vrp: sub_vrp,
+            vrp: sub_service_vrp[:vrp],
             level: service_vrp[:level] + 1
           }
         }
       else
         raise 'Incorrect split size with kmeans' if services_by_cluster.size > 2
         # Kmeans return 1 vrp
-        sub_vrp = SplitClustering::build_partial_service_vrp(service_vrp, services_by_cluster[0].map(&:id))[:vrp]
-        sub_vrp.points = vrp.points
-        sub_vrp.vehicles = vrp.vehicles
-        sub_vrp.vehicles.each{ |vehicle|
-          vehicle[:cost_fixed] = vehicle[:cost_fixed] && vehicle[:cost_fixed] > 0 ? vehicle[:cost_fixed] : 1e6
-        }
-        split_service_vrps << {
-          service: service_vrp[:service],
-          vrp: sub_vrp,
-          level: service_vrp[:level]
-        }
+        split_service_vrps << service_vrp
       end
       SplitClustering.output_clusters(split_service_vrps) if service_vrp[:vrp][:debug_output_clusters]
 
       split_service_vrps
-    end
-
-    # TODO: remove this method and use SplitClustering class instead
-    def self.kmeans(vrp, cut_symbol)
-      nb_clusters = 2
-      # Split using balanced kmeans
-      if vrp.services.all?{ |service| service[:activity] }
-        unit_symbols = vrp.units.collect{ |unit| unit.id.to_sym } << :duration << :visits
-        cumulated_metrics = Hash.new(0)
-        data_items = []
-
-        # Collect data for kmeans
-        vrp.points.each{ |point|
-          unit_quantities = Hash.new(0)
-          related_services = vrp.services.select{ |service| service[:activity][:point_id] == point[:id] }
-          related_services.each{ |service|
-            unit_quantities[:visits] += 1
-            cumulated_metrics[:visits] += 1
-            unit_quantities[:duration] += service[:activity][:duration]
-            cumulated_metrics[:duration] += service[:activity][:duration]
-            service.quantities.each{ |quantity|
-              unit_quantities[quantity.unit_id.to_sym] += quantity.value
-              cumulated_metrics[quantity.unit_id.to_sym] += quantity.value
-            }
-          }
-
-          next if related_services.empty?
-          related_services.each{ |related_service|
-            data_items << [point.location.lat, point.location.lon, point.id, unit_quantities, [], [], 0]
-          }
-        }
-
-        # No expected caracteristics neither strict limitations because we do not
-        # know which vehicles will be used in advance
-        options = { max_iterations: 100, restarts: 5, cut_symbol: cut_symbol, last_iteration_balance_rate: 0.0 }
-        limits = { metric_limit: { limit: cumulated_metrics[cut_symbol] / nb_clusters },
-                   strict_limit: {}}
-
-        clusters, _centroid_indices = SplitClustering.kmeans_process([], nb_clusters, data_items, unit_symbols, limits, options)
-
-        services_by_cluster = clusters.collect{ |cluster|
-          cluster.data_items.collect{ |data|
-            vrp.services.find{ |service| service.activity.point_id == data[2] }
-          }
-        }
-        services_by_cluster
-      else
-        puts 'Split not available when services have no activities'
-        [vrp]
-      end
     end
   end
 end
