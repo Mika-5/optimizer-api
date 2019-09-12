@@ -106,10 +106,10 @@ module Interpreters
       [untouched_service_vrps, (several_service_vrps + batched_service_vrps) || []]
     end
 
-    def self.custom_heuristics(service, vrp, block)
+    def self.custom_heuristics(service, vrp, job, block)
       service_vrp = { vrp: vrp, service: service }
       if vrp.preprocessing_first_solution_strategy && !vrp.preprocessing_first_solution_strategy.include?('periodic')
-        find_best_heuristic(service_vrp)
+        service_vrp = find_best_heuristic(service_vrp, job, block)
       else
         service_vrp
       end
@@ -129,22 +129,33 @@ module Interpreters
       }.flatten.compact
     end
 
-    def self.find_best_heuristic(service_vrp)
+    def self.find_best_heuristic(service_vrp, job, block)
       vrp = service_vrp[:vrp]
       strategies = vrp.preprocessing_first_solution_strategy
       custom_heuristics = collect_heuristics(vrp, strategies)
       if custom_heuristics.size > 1
         batched_service_vrps = batch_heuristic(service_vrp, custom_heuristics)
         times = []
-        first_results = batched_service_vrps.collect{ |s_vrp|
+        first_results = batched_service_vrps.collect.with_index{ |s_vrp, index|
           s_vrp[:vrp][:resolution_batch_heuristic] = true
           s_vrp[:vrp][:resolution_initial_time_out] = nil
           s_vrp[:vrp][:resolution_min_duration] = nil
           s_vrp[:vrp][:resolution_duration] = (service_vrp[:vrp][:resolution_duration].to_f / custom_heuristics.size).floor
-          heuristic_solution = OptimizerWrapper.solve([s_vrp])
+          if vrp.resolution_total_split_number > 2
+            s_vrp[:vrp][:resolution_split_number] = vrp.resolution_split_number + index
+            s_vrp[:vrp][:resolution_total_split_number] = vrp.resolution_total_split_number + index
+          else
+            s_vrp[:vrp][:resolution_split_number] = vrp.resolution_split_number + index
+            s_vrp[:vrp][:resolution_total_split_number] = vrp.resolution_total_split_number + batched_service_vrps.size
+          end
+
+          heuristic_solution = OptimizerWrapper.solve([s_vrp], job, block)
+
           times << (heuristic_solution && heuristic_solution[:elapsed] || 0)
           heuristic_solution
         }
+        service_vrp[:vrp].resolution_split_number = batched_service_vrps.last[:vrp][:resolution_split_number]
+        service_vrp[:vrp].resolution_total_split_number = batched_service_vrps.last[:vrp][:resolution_total_split_number]
         raise RuntimeError.new('No solution found') if first_results.all?{ |res| res.nil? }
         synthesis = []
         first_results.each_with_index{ |result, i|
