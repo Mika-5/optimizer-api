@@ -145,9 +145,17 @@ module Interpreters
     def self.set_config(service_vrp)
       # service_vrp[:vrp].resolution_batch_heuristic = true
       service_vrp[:vrp].restitution_allow_empty_result = true
-      if service_vrp[:level] && service_vrp[:level] > 0
-        service_vrp[:vrp].resolution_duration = service_vrp[:vrp].resolution_duration ? (service_vrp[:vrp].resolution_duration / 2.66).to_i : 80000 # TODO: Time calculation is inccorect due to end_stage. We need a better time limit calculation
-        service_vrp[:vrp].resolution_minimum_duration = service_vrp[:vrp].resolution_minimum_duration ? (service_vrp[:vrp].resolution_minimum_duration / 2.66).to_i : 70000
+      if service_vrp[:level]&.positive?
+        service_vrp[:vrp].resolution_duration = if service_vrp[:vrp].resolution_duration && !service_vrp[:vrp].resolution_duration.zero?
+                                                  (service_vrp[:vrp].resolution_duration / 2.66).to_i
+                                                else
+                                                  80000
+                                                end
+        service_vrp[:vrp].resolution_minimum_duration = if service_vrp[:vrp].resolution_minimum_duration && !service_vrp[:vrp].resolution_minimum_duration.zero?
+                                                          (service_vrp[:vrp].resolution_minimum_duration / 2.66).to_i
+                                                        else
+                                                          70000
+                                                        end
       end
 
       if service_vrp[:level] && service_vrp[:level] == 0
