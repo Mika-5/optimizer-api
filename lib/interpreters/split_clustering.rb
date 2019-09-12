@@ -195,30 +195,30 @@ module Interpreters
           sub_problem[:vrp].services += empties_or_fills
         end
         puts "---------- cluster (size: #{sub_problem[:vrp][:services].size}) uses #{sub_result[:routes].map{ |route| route[:vehicle_id] }.size} vehicles #{sub_result[:routes].map{ |route| route[:vehicle_id] }}, unassigned: #{sub_result[:unassigned].size}"
-        if sub_problem[:vrp][:services].size != sub_result[:routes].flat_map{ |r| r[:activities].map{ |a| a[:service_id] } }.compact.size + sub_result[:unassigned].map{ |u| u[:service_id] }.size
-          service_ids = []
-          sub_result[:unassigned].each{ |u|
-            if u[:service_id]
-              if service_ids.include? u[:service_id]
-                sub_result[:unassigned].delete(u)
-              else
-                service_ids << u[:service_id]
-              end
-            end
-          }
-          sub_result[:routes].each{ |r|
-            r[:activities].each{ |a|
-              if a[:service_id]
-                if service_ids.include? a[:service_id]
-                  r[:activities].delete(a)
-                else
-                  service_ids << a[:service_id]
-                end
-              end
-            }
-          }
-        end
-
+        byebug if sub_problem[:vrp][:services].size != sub_result[:routes].flat_map{ |r| r[:activities].map{ |a| a[:service_id] } }.compact.size + sub_result[:unassigned].map{ |u| u[:service_id] }.compact.size
+        # if sub_problem[:vrp][:services].size != sub_result[:routes].flat_map{ |r| r[:activities].map{ |a| a[:service_id] } }.compact.size + sub_result[:unassigned].map{ |u| u[:service_id] }.size
+        #   service_ids = []
+        #   sub_result[:unassigned].each{ |u|
+        #     if u[:service_id]
+        #       if service_ids.include? u[:service_id]
+        #         sub_result[:unassigned].delete(u)
+        #       else
+        #         service_ids << u[:service_id]
+        #       end
+        #     end
+        #   }
+        #   sub_result[:routes].each{ |r|
+        #     r[:activities].each{ |a|
+        #       if a[:service_id]
+        #         if service_ids.include? a[:service_id]
+        #           r[:activities].delete(a)
+        #         else
+        #           service_ids << a[:service_id]
+        #         end
+        #       end
+        #     }
+        #   }
+        # end
         result = Helper.merge_results([result, sub_result])
       }
       vrp.services += empties_or_fills
@@ -413,7 +413,7 @@ module Interpreters
         puts "--> kmeans_process"
         tic = Time.now
         clusters, _centroids, centroid_caracteristics = kmeans_process(centroids, nb_clusters, data_items, unit_symbols, limits, options, &block)
-        puts "CLUSTERING TOTAL TIME #{toc-tic}"
+        puts "CLUSTERING TOTAL TIME #{Time.now-tic}"
 
         result_items = clusters.delete_if{ |cluster| cluster.data_items.empty? }.collect{ |cluster|
           cluster.data_items.flat_map{ |i|
