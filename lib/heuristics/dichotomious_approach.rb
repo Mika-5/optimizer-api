@@ -32,13 +32,12 @@ module Interpreters
         service_vrp[:vrp].vehicles.size > service_vrp[:vrp].resolution_dicho_division_vec_limit &&
         !service_vrp[:vrp].scheduling? &&
         # TODO: We should introduce a new parameter to avoid this static definition
-        service_vrp[:vrp].services.size - service_vrp[:vrp].routes.map{ |r| r[:mission_ids].size }.sum > 200 &&
+        service_vrp[:vrp].services.size - service_vrp[:vrp].routes.map{ |r| r[:mission_ids].size }.sum > 400 &&
         service_vrp[:vrp].shipments.empty? &&
-        # (service_vrp[:vrp].vehicles.all?(&:force_start) || service_vrp[:vrp].vehicles.all?{ |vehicle| vehicle[:shift_preference] == 'force_start' }) &&
         service_vrp[:vrp].vehicles.all?{ |vehicle| vehicle.cost_late_multiplier.nil? || vehicle.cost_late_multiplier == 0 } &&
         service_vrp[:vrp].services.all?{ |service| service.activity.late_multiplier.nil? || service.activity.late_multiplier == 0 } &&
-        service_vrp[:vrp].services.any?{ |service| service.activity.timewindows && !service.activity.timewindows.empty? } &&
-        service_vrp[:vrp].points.all?{ |point| point.location && point.location.lat && point.location.lon }) #TODO - Remove and use matrix/matrix_index in clustering
+        service_vrp[:vrp].points.all?{ |point| point.location && point.location.lat && point.location.lon } &&
+        service_vrp[:vrp].services.any?{ |service| service.activity.timewindows && !service.activity.timewindows.empty? })
     end
 
     def self.feasible_vrp(result, service_vrp)
