@@ -38,7 +38,7 @@ module DistanceMatrix
     vrp_need_matrix = compute_vrp_need_matrix
     need_matrix = vehicles.collect{ |vehicle| [vehicle, vehicle.dimensions] }.select{ |vehicle, dimensions|
       dimensions.find{ |dimension|
-        vrp_need_matrix.include?(dimension) && (vehicle.matrix_id.nil? || matrices.find{ |matrix| matrix.id == vehicle.matrix_id }.send(dimension).nil?) && vehicle.send('need_matrix_' + dimension.to_s + '?')
+        vrp_need_matrix.include?(dimension) && (vehicle.matrix_id.nil? || matrices.find{ |matrix| matrix.id == vehicle.matrix_id }&.send(dimension).nil?) && vehicle.send('need_matrix_' + dimension.to_s + '?')
       }
     }
     if !need_matrix.empty?
