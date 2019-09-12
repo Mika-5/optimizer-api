@@ -209,6 +209,20 @@ module Models
       self.resolution_duration != self.resolution_total_duration
     end
 
+    def only_one_point?
+      if points.all?(&:location)
+        services.map{ |service|
+          point = points.find{ |p| service.activity.point_id == p.id }
+          [point.location.lat, point.location.lon]
+        }.flatten.uniq.size == 2
+      else
+        services.map{ |service|
+          point = points.find{ |p| service.activity.point_id == p.id }
+          [point.matrix_index]
+        }.flatten.uniq.size == 1
+      end
+    end
+
     def scheduling?
       self.schedule_range_indices || self.schedule_range_date
     end

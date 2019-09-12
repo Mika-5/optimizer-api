@@ -110,5 +110,38 @@ class DichotomiousTest < Minitest::Test
         assert_equal service_vrp[:vrp].points.size, service_vrp[:vrp].matrices.first.distance.size
       }
     end
+
+    def test_split_into_two_subproblem
+      vrp = FCT.load_vrp(self)
+      service_vrp = {
+        services: :ortools,
+        vrp: vrp,
+        level: 0
+      }
+      sub_service_vrps = nil
+      loop do
+        sub_service_vrps = Interpreters::Dichotomious.split(service_vrp)
+        break if sub_service_vrps.size == 2 || vrp.only_one_point?
+      end
+      assert !vrp.only_one_point?
+      assert sub_service_vrps.size == 2
+    end
+
+    def test_split_into_one_subproblem
+      vrp = FCT.load_vrp(self, fixture_file: "split_into_two_subproblem")
+      vrp.services.first.activity.point_id = 'p4'
+      service_vrp = {
+        services: :ortools,
+        vrp: vrp,
+        level: 0
+      }
+      sub_service_vrps = nil
+      loop do
+        sub_service_vrps = Interpreters::Dichotomious.split(service_vrp)
+        break if sub_service_vrps.size == 2 || vrp.only_one_point?
+      end
+      assert vrp.only_one_point?
+      assert sub_service_vrps.size == 1
+    end
   end
 end

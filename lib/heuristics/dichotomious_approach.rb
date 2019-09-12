@@ -54,7 +54,7 @@ module Interpreters
           service_vrp[:vrp].calculate_service_exclusion_costs(:time, true)
           update_exlusion_cost(service_vrp)
         # Do not solve if vrp has too many vehicles or services - init_duration is set in set_config()
-        elsif service_vrp[:vrp].resolution_init_duration.nil?
+        elsif service_vrp[:vrp].resolution_init_duration.nil? || service_vrp[:vrp].only_one_point?
           service_vrp[:vrp].calculate_service_exclusion_costs(:time, true)
           update_exlusion_cost(service_vrp)
           result = OptimizerWrapper.solve([service_vrp], job, block)
@@ -65,11 +65,12 @@ module Interpreters
 
         t2 = Time.now
         if (result.nil? || result[:unassigned].size >= 0.7 * service_vrp[:vrp].services.size) && feasible_vrp(result, service_vrp) &&
-           service_vrp[:vrp].vehicles.size > service_vrp[:vrp].resolution_dicho_division_vec_limit && service_vrp[:vrp].services.size > 100
+           service_vrp[:vrp].vehicles.size > service_vrp[:vrp].resolution_dicho_division_vec_limit && service_vrp[:vrp].services.size > 100 &&
+           !service_vrp[:vrp].only_one_point?
           sub_service_vrps = []
           loop do
             sub_service_vrps = split(service_vrp, job, &block)
-            break if sub_service_vrps.size == 2
+            break if sub_service_vrps.size == 2 || service_vrp[:vrp].only_one_point?
           end
           results = sub_service_vrps.map.with_index{ |sub_service_vrp, index|
             sub_service_vrp[:vrp].resolution_split_number = sub_service_vrps[0][:vrp].resolution_split_number + 1 if !index.zero?
@@ -81,7 +82,7 @@ module Interpreters
               sub_service_vrp[:vrp].resolution_minimum_duration *= sub_service_vrp[:vrp].services.size / service_vrp[:vrp].services.size.to_f * 2
             end
             result = OptimizerWrapper.define_process([sub_service_vrp], job, &block)
-            if index.zero? && result
+            if index.zero? && result && sub_service_vrps.size == 2
               transfer_unused_vehicles(result, sub_service_vrps)
               matrix_indices = sub_service_vrps[1][:vrp].points.map{ |point|
                 service_vrp[:vrp].points.find{ |r_point| point.id == r_point.id }.matrix_index
@@ -91,8 +92,10 @@ module Interpreters
             end
             result
           }
-          service_vrp[:vrp].resolution_split_number = sub_service_vrps[1][:vrp].resolution_split_number
-          service_vrp[:vrp].resolution_total_split_number = sub_service_vrps[1][:vrp].resolution_total_split_number
+          if sub_service_vrps.size == 2
+            service_vrp[:vrp].resolution_split_number = sub_service_vrps[1][:vrp].resolution_split_number
+            service_vrp[:vrp].resolution_total_split_number = sub_service_vrps[1][:vrp].resolution_total_split_number
+          end
           result = Helper.merge_results(results)
           result[:elapsed] += (t2 - t1) * 1000
 
