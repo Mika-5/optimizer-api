@@ -158,9 +158,17 @@ module Interpreters
       vrp.services -= empties_or_fills
       sub_service_vrps = split_balanced_kmeans(service_vrp, 2)
       output_clusters(sub_service_vrps) if service_vrp[:vrp][:debug_output_clusters]
+      sub_problem = []
       result = []
       sub_service_vrps.sort_by{ |sub_service_vrp| -sub_service_vrp[:vrp].services.size }.each_with_index{ |sub_service_vrp, index|
         sub_vrp = sub_service_vrp[:vrp]
+        if index.zero?
+          sub_vrp.resolution_split_number += index
+          sub_vrp.resolution_total_split_number += 1
+        else
+          sub_vrp.resolution_split_number = sub_problem[:vrp].resolution_total_split_number
+          sub_vrp.resolution_total_split_number = sub_problem[:vrp].resolution_total_split_number + 1
+        end
         sub_vrp.resolution_duration = vrp.resolution_duration / problem_size * (sub_vrp.services.size + sub_vrp.shipments.size)
         sub_vrp.resolution_minimum_duration = (vrp.resolution_minimum_duration || vrp.resolution_initial_time_out) / problem_size *
                                                 (sub_vrp.services.size + sub_vrp.shipments.size) if vrp.resolution_minimum_duration || vrp.resolution_initial_time_out
@@ -172,7 +180,7 @@ module Interpreters
         sub_vrp.services += empties_or_fills
         sub_vrp.points += empties_or_fills.map{ |empti_of_fill| vrp.points.find{ |point| empti_of_fill.activity.point.id == point.id } }
         sub_vrp.vehicles.select!{ |vehicle| available_vehicle_ids.include?(vehicle.id) }
-        sub_result = OptimizerWrapper.define_process([sub_problem], job, &block)
+        sub_result, sub_problem = OptimizerWrapper.define_process([sub_problem], job, &block)
         remove_poor_routes(sub_vrp, sub_result)
         raise 'Incorrect activities count' if sub_problem[:vrp][:services].size != sub_result[:routes].flat_map{ |r| r[:activities].map{ |a| a[:service_id] } }.compact.size + sub_result[:unassigned].map{ |u| u[:service_id] }.compact.size
         available_vehicle_ids.delete_if{ |id| sub_result[:routes].collect{ |route| route[:vehicle_id] }.include?(id) }

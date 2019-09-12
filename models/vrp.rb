@@ -56,8 +56,8 @@ module Models
     field :resolution_same_point_day, default: false
     field :resolution_allow_partial_assignment, default: true
     field :resolution_evaluate_only, default: false
-    field :resolution_split_number, default: 1
-    field :resolution_total_split_number, default: 2
+    field :resolution_split_number, default: 2
+    field :resolution_total_split_number, default: 1
     field :resolution_several_solutions, default: nil
     field :resolution_variation_ratio, default: nil
     field :resolution_batch_heuristic, default: false
@@ -206,7 +206,7 @@ module Models
     end
 
     def dichotomious_process?
-      self.resolution_duration != self.resolution_total_duration
+      self.resolution_duration != self.resolution_total_duration && self.resolution_total_split_number != 1
     end
 
     def only_one_point?

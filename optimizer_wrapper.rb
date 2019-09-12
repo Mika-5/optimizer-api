@@ -105,7 +105,7 @@ module OptimizerWrapper
     else
       if config[:solve_synchronously] || (services_vrps.size == 1 && !vrp.preprocessing_cluster_threshold && config[:services][services_vrps[0][:service]].solve_synchronous?(vrp))
         # The job seems easy enough to perform it with the server
-        define_process(services_vrps, job_id)
+        define_process(services_vrps, job_id).first
       else
         # Delegate the job to a worker
         job_id = Job.enqueue_to(services[:queue], Job, services_vrps: Base64.encode64(Marshal::dump(services_vrps)),
@@ -145,7 +145,7 @@ module OptimizerWrapper
     result_global = {
       result: ([result] + duplicated_results + split_results + dicho_results).compact
     }
-    result_global[:result].size > 1 ? result_global[:result] : result_global[:result].first
+    [result_global[:result].size > 1 ? result_global[:result] : result_global[:result].first, services_vrps.first]
   end
 
   def self.solve(services_vrps, job = nil, block = nil)
@@ -217,7 +217,7 @@ module OptimizerWrapper
             if vrp.resolution_solver_parameter != -1 && vrp.resolution_solver && !vrp.preprocessing_first_solution_strategy.to_a.include?('periodic')
               block.call(nil, nil, nil, 'process heuristic choice', nil, nil, nil) if block && vrp.preprocessing_first_solution_strategy
               # Select best heuristic
-              Interpreters::SeveralSolutions.custom_heuristics(service, vrp, block)
+              Interpreters::SeveralSolutions.custom_heuristics(service, vrp, job, block)
               unfeasible_services.each{ |una_service|
                 index = vrp.services.find_index{ |s| una_service[:original_service_id] == s.id }
                 if index
@@ -245,7 +245,10 @@ module OptimizerWrapper
                 }
                 if result.class.name == 'Hash' # result.is_a?(Hash) not working
                   result[:elapsed] = (Time.now - time_start) * 1000 # Can be overridden in wrappers
-                  block.call(nil, nil, nil, "process #{vrp.resolution_split_number}/#{vrp.resolution_total_split_number} - " + 'run optimization' + " - elapsed time #{(Result.time_spent(result[:elapsed]) / 1000).to_i}/" + "#{vrp.resolution_total_duration / 1000} ", nil, nil, nil) if block && vrp.dichotomious_process?
+                  Result.time_spent(result[:elapsed])
+                  if block && vrp.dichotomious_process?
+                    block.call(nil, nil, nil, "process #{vrp.resolution_split_number}/#{vrp.resolution_total_split_number} - " + 'run optimization', nil, nil, nil)
+                  end
                   parse_result(cluster_vrp, result)
                 elsif result.class.name == 'String' # result.is_a?(String) not working
                   raise RuntimeError.new(result) unless result == "Job killed"

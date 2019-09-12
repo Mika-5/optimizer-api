@@ -186,6 +186,8 @@ module Interpreters
 
       if service_vrp[:level] && service_vrp[:level] == 0
         dicho_level_coeff(service_vrp)
+        service_vrp[:vrp].resolution_split_number = 1
+        service_vrp[:vrp].resolution_total_split_number = 2
         service_vrp[:vrp].vehicles.each{ |vehicle|
           vehicle[:cost_fixed] = vehicle[:cost_fixed] && vehicle[:cost_fixed] > 0 ? vehicle[:cost_fixed] : 1e6
           if !vehicle[:cost_distance_multiplier] || vehicle[:cost_distance_multiplier].zero?
@@ -398,7 +400,6 @@ module Interpreters
 
           # TODO: à cause de la grande disparité du split_vehicles par skills, on peut rapidement tomber à 1...
           sub_vrp.resolution_vehicle_limit = [sub_vrp.vehicles.size, vrp.vehicles.empty? ? 0 : (sub_vrp.vehicles.size / vrp.vehicles.size.to_f * vrp.resolution_vehicle_limit).ceil].min
-          sub_vrp.preprocessing_first_solution_strategy = ['self_selection'] # ???
           sub_vrp.resolution_split_number += i
           sub_vrp.resolution_total_split_number += 1
 
