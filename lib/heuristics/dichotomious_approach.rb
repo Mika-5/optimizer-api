@@ -73,6 +73,7 @@ module Interpreters
             sub_service_vrps = split(service_vrp, job, &block)
             break if sub_service_vrps.size == 2 || service_vrp[:vrp].only_one_point?
           end
+          unassigned_services = []
           ramaining_empties_or_fills = []
           empties_or_fills_used = []
           empties_or_fills = (service_vrp[:vrp].services.select{ |service| service.quantities.any?(&:fill) } +
@@ -91,14 +92,20 @@ module Interpreters
             sub_service_vrp[:vrp].points += empties_or_fills.collect{ |empty_or_fill| service_vrp[:vrp].points.find{ |point| empty_or_fill.activity.point_id == point.id } }
             update_matrix(service_vrp[:vrp], sub_service_vrp[:vrp])
 
-            result = OptimizerWrapper.define_process([sub_service_vrp], job, &block)
-            empties_or_fills_used = Interpreters::SplitClustering.remove_used_empties_and_refills(empties_or_fills, result).compact
-            ramaining_empties_or_fills = empties_or_fills - empties_or_fills_used
-            empties_or_fills -= empties_or_fills_used
+            result, sub_service_vrp = OptimizerWrapper.define_process([sub_service_vrp], job, &block)
 
-            result[:unassigned].delete_if{ |activity| ramaining_empties_or_fills.map{ |service| service.id }.include?(activity[:service_id]) } if result
             if index.zero? && result && sub_service_vrps.size == 2
+              empties_or_fills_used = Interpreters::SplitClustering.remove_used_empties_and_refills(empties_or_fills, result).compact
+              ramaining_empties_or_fills = empties_or_fills - empties_or_fills_used
+              empties_or_fills -= empties_or_fills_used
+
+              result[:unassigned].delete_if{ |activity| ramaining_empties_or_fills.map{ |service| service.id }.include?(activity[:service_id]) } if result
               transfer_unused_vehicles(result, sub_service_vrps)
+            end
+            if result.nil?
+              unassigned_services += sub_service_vrp[:vrp].services.collect{ |service|
+                sub_service_vrp[:vrp].get_unassigned_info(sub_service_vrp[:vrp], service[:id], service, 'no solution found in dicho sub_problem')
+              }
             end
             result
           }
@@ -107,6 +114,7 @@ module Interpreters
             service_vrp[:vrp].resolution_total_split_number = sub_service_vrps[1][:vrp].resolution_total_split_number
           end
           result = Helper.merge_results(results)
+          result[:unassigned] += unassigned_services.uniq
           result[:elapsed] += (t2 - t1) * 1000
 
           remove_bad_skills(service_vrp, result)
@@ -299,7 +307,7 @@ module Interpreters
             end
             # sub_service_vrp[:vrp].resolution_vehicle_limit = sub_service_vrp[:vrp].vehicles.size
             sub_service_vrp[:vrp].restitution_allow_empty_result = true
-            result_loop = OptimizerWrapper.solve([sub_service_vrp], job)
+            result_loop = OptimizerWrapper.solve([sub_service_vrp], job, nil)
             result[:elapsed] += result_loop[:elapsed] if result_loop && result_loop[:elapsed]
 
             # Initial routes can be refused... check unassigned size before take into account solution

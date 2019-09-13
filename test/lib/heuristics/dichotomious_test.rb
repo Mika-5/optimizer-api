@@ -144,4 +144,23 @@ class DichotomiousTest < Minitest::Test
       assert sub_service_vrps.size == 1
     end
   end
+
+  def test_unfeasible_services_dicho
+    vrp = FCT.load_vrp(self, fixture_file: "bouya_chaka")
+    check_vrp = Marshal.load(Marshal.dump(vrp))
+    service_vrp = [{ vrp: vrp, service: :demo, level: 0 }]
+    vrp.services.first[:quantities].first[:value] = 10000
+
+    result = OptimizerWrapper.stub(
+      :solve, #(problem, vrp, services, points, matrix_indices, thread_proc = nil, &block)
+      lambda { |services_vrps, job, block|
+        # Check if precision coefficient turns the values to integer (i.e., (float.round - float).abs < dalta ).
+        return nil
+      }
+    ) do
+      OptimizerWrapper.wrapper_vrp('ortools', {services: {vrp: [:ortools]}}, vrp, nil)
+    end
+
+    assert_equal check_vrp.services.size, vrp.services.size
+  end
 end

@@ -237,6 +237,23 @@ module Models
       [0, end_date - start_date]
     end
 
+    def get_unassigned_info(vrp, id, service_in_vrp, reason)
+      {
+        original_service_id: service_in_vrp[:id],
+        service_id: id,
+        point_id: service_in_vrp[:activity][:point_id],
+        detail: {
+          lat: (vrp.points.find{ |point| point[:id] == service_in_vrp[:activity][:point_id] }[:location][:lat] if vrp.points.find{ |point| point[:id] == service_in_vrp[:activity][:point_id] }[:location]),
+          lon: (vrp.points.find{ |point| point[:id] == service_in_vrp[:activity][:point_id] }[:location][:lon] if vrp.points.find{ |point| point[:id] == service_in_vrp[:activity][:point_id] }[:location]),
+          setup_duration: service_in_vrp[:activity][:setup_duration],
+          duration: service_in_vrp[:activity][:duration],
+          timewindows: service_in_vrp[:activity][:timewindows] ? service_in_vrp[:activity][:timewindows].collect{ |tw| {start: tw[:start], end: tw[:end] } }.sort_by{ |t| t[:start] } : [],
+          quantities: service_in_vrp.quantities.collect{ |qte| { unit: qte.unit.id, value: qte.value, label: qte.unit.label } }
+        },
+        reason: reason
+      }
+    end
+
     def calculate_service_exclusion_costs(type = :time, force_recalc = false)
       # TODO: This function will calculate an exclusion cost for each service seperately
       # using the time, distance , capacity or a mix of all.

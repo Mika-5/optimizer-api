@@ -448,14 +448,14 @@ module Heuristics
       @candidate_services_ids.each{ |point|
         service_in_vrp = vrp.services.find{ |service| service[:id] == point }
         (1..service_in_vrp[:visits_number]).each{ |index|
-          unassigned << get_unassigned_info(vrp, "#{point}_#{index}_#{service_in_vrp[:visits_number]}", service_in_vrp, 'Heuristic could not affect this service before all vehicles are full')
+          unassigned << vrp.get_unassigned_info(vrp, "#{point}_#{index}_#{service_in_vrp[:visits_number]}", service_in_vrp, 'Heuristic could not affect this service before all vehicles are full')
         }
       }
 
       @uninserted.keys.each{ |service|
         s = @uninserted[service][:original_service]
         service_in_vrp = vrp.services.find{ |current_service| current_service[:id] == s }
-        unassigned << get_unassigned_info(vrp, service, service_in_vrp, @uninserted[service][:reason])
+        unassigned << vrp.get_unassigned_info(vrp, service, service_in_vrp, @uninserted[service][:reason])
       }
 
       unassigned
@@ -1146,23 +1146,6 @@ module Heuristics
       }
 
       initialize_routes(vrp.routes) unless vrp.routes.empty?
-    end
-
-    def get_unassigned_info(vrp, id, service_in_vrp, reason)
-      {
-        original_service_id: service_in_vrp[:id],
-        service_id: id,
-        point_id: service_in_vrp[:activity][:point_id],
-        detail: {
-          lat: (vrp.points.find{ |point| point[:id] == service_in_vrp[:activity][:point_id] }[:location][:lat] if vrp.points.find{ |point| point[:id] == service_in_vrp[:activity][:point_id] }[:location]),
-          lon: (vrp.points.find{ |point| point[:id] == service_in_vrp[:activity][:point_id] }[:location][:lon] if vrp.points.find{ |point| point[:id] == service_in_vrp[:activity][:point_id] }[:location]),
-          setup_duration: service_in_vrp[:activity][:setup_duration],
-          duration: service_in_vrp[:activity][:duration],
-          timewindows: service_in_vrp[:activity][:timewindows] ? service_in_vrp[:activity][:timewindows].collect{ |tw| {start: tw[:start], end: tw[:end] } }.sort_by{ |t| t[:start] } : [],
-          quantities: service_in_vrp.quantities.collect{ |qte| { unit: qte.unit.id, value: qte.value, label: qte.unit.label } }
-        },
-        reason: reason
-      }
     end
 
     def insert_point_in_route(route_data, point_to_add, day)
