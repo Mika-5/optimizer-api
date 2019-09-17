@@ -71,9 +71,9 @@ module Interpreters
 
       vrp.relations = generate_relations(vrp)
       vrp.services = generate_services(vrp)
+      vrp.relations = [] if vrp.relations.size > 100
       compute_days_interval(vrp)
       vrp.shipments = generate_shipments(vrp)
-
       @periods.uniq!
 
       vrp.rests = []
@@ -179,11 +179,16 @@ module Interpreters
             end
           end
           @periods << service.visits_number
-          visit_period = (@schedule_end + 1).to_f/service.visits_number
-          timewindows_iterations = (visit_period /(6 || 1)).ceil
+          visit_period = (@schedule_end + 1).to_f / service.visits_number
+          timewindows_iterations = (visit_period / (6 || 1)).ceil
           ## Create as much service as needed
+          reference1 = 0
+          reference2 = 0
           (0..service.visits_number-1).collect{ |visit_index|
             new_service = nil
+
+            heuristic_when_too_many_relations(service, visit_index, reference1, reference2) if vrp.relations.size > 100
+
             if !service.unavailable_visit_indices || service.unavailable_visit_indices.none?{ |unavailable_index| unavailable_index == visit_index }
               new_service = Marshal::load(Marshal.dump(service))
               new_service.id = "#{new_service.id}_#{visit_index+1}_#{new_service.visits_number}"
@@ -218,6 +223,58 @@ module Interpreters
           service
         end
       }.flatten
+    end
+
+    def heuristic_when_too_many_relations(service, visit_index, reference1, reference2)
+      all_indices = (@schedule_start..@schedule_end).map{ |index| index }
+
+      week_end_indices = all_indices.map.with_index{ |indice, index|
+        next if index.zero?
+
+        indice if indice == (index / 7).to_i * 7 + 5 ||
+                  indice == (index / 7).to_i * 7 + 6
+      }.compact
+
+      what_we_need = all_indices - week_end_indices
+
+      range_1 = [visit_index * service.minimum_lapse.to_i, reference1].max
+      range_1 = [visit_index * service.minimum_lapse.to_i + 1, reference1 + 1].max if service.visits_number < 5 && service.visits_number > 2
+      range_1 = [visit_index * service.minimum_lapse.to_i + 2, reference1 + 2].max if service.visits_number < 3 && service.visits_number > 1
+      range_1 = [visit_index * service.minimum_lapse.to_i + 3, reference1 + 3].max if service.visits_number < 2
+      while week_end_indices[0..-3].include?(range_1)
+        range_1 += 1
+        reference1 = range_1
+      end
+
+      while range_1 > @schedule_end - 2
+        range_1 -= 1
+        reference1 = range_1
+      end
+
+      range_2 = [visit_index * service.minimum_lapse.to_i, reference2].max
+      range_2 = [visit_index * service.minimum_lapse.to_i + 1, reference2 + 1].max if service.visits_number < 5 && service.visits_number > 2
+      range_2 = [visit_index * service.minimum_lapse.to_i + 2, reference2 + 2].max if service.visits_number < 3 && service.visits_number > 1
+      range_2 = [visit_index * service.minimum_lapse.to_i + 3, reference1 + 3].max if service.visits_number < 2
+      while week_end_indices[0..-3].include?(range_2)
+        range_2 += 1
+        reference2 = range_2
+      end
+
+      while range_2 > @schedule_end - 2
+        range_2 -= 1
+        reference2 = range_2
+      end
+
+      reference1 += service.minimum_lapse.to_i if !reference1.zero?
+      reference2 += service.minimum_lapse.to_i if !reference1.zero?
+
+      available_indices = (range_1..range_2).map{ |index| index }
+
+      business_days = all_indices.size - week_end_indices.size
+      if service.visits_number.to_i == business_days || service.visits_number.to_i == business_days - 1 || service.visits_number.to_i == business_days - 2
+        available_indices = [what_we_need[visit_index]]
+      end
+      service.unavailable_visit_day_indices = all_indices - available_indices
     end
 
     def generate_shipments(vrp)
