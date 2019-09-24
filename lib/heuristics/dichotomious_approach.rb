@@ -89,7 +89,10 @@ module Interpreters
             if sub_service_vrp[:vrp].resolution_minimum_duration
               sub_service_vrp[:vrp].resolution_minimum_duration *= sub_service_vrp[:vrp].services.size / service_vrp[:vrp].services.size.to_f * 2
             end
+            puts "sub_service_vrp[:vrp].services   ---   #{sub_service_vrp[:vrp].services.size}"
+            puts "empties_or_fills   ---   #{empties_or_fills.size}"
             sub_service_vrp[:vrp].services += empties_or_fills
+            puts "sub_service_vrp[:vrp].services   ---   #{sub_service_vrp[:vrp].services.size}"
             sub_service_vrp[:vrp].points += empties_or_fills.collect{ |empty_or_fill| service_vrp[:vrp].points.find{ |point| empty_or_fill.activity.point_id == point.id } }
             update_matrix(service_vrp[:vrp], sub_service_vrp[:vrp])
 
@@ -98,6 +101,8 @@ module Interpreters
             if index.zero? && result && sub_service_vrps.size == 2
               empties_or_fills_used = Interpreters::SplitClustering.remove_used_empties_and_refills(empties_or_fills, result).compact
               ramaining_empties_or_fills = empties_or_fills - empties_or_fills_used
+              puts "empties_or_fills_used   ---   #{empties_or_fills_used.size}"
+              puts "ramaining_empties_or_fills   ---   #{ramaining_empties_or_fills.size}"
               empties_or_fills -= empties_or_fills_used
 
               result[:unassigned].delete_if{ |activity| ramaining_empties_or_fills.map{ |service| service.id }.include?(activity[:service_id]) } if result
@@ -116,20 +121,20 @@ module Interpreters
           end
           result = Helper.merge_results(results)
           result[:unassigned] += unassigned_services.uniq
-          byebug if service_vrp[:vrp][:services].size != result[:routes].flat_map{ |r| r[:activities].map{ |a| a[:service_id] } }.compact.size + result[:unassigned].map{ |u| u[:service_id] }.size
+          byebug if service_vrp[:vrp][:services].size != result[:routes].flat_map{ |r| r[:activities].map{ |a| a[:service_id] } }.compact.size + result[:unassigned].map{ |u| u[:service_id] }.size + ramaining_empties_or_fills.size
           result[:elapsed] += (t2 - t1) * 1000
           puts "dicho - level(#{service_vrp[:level]}) A unassigned rate #{result[:unassigned].size}/#{service_vrp[:vrp].services.size}: #{(result[:unassigned].size.to_f / service_vrp[:vrp].services.size * 100).round(1)}%"
 
           remove_bad_skills(service_vrp, result)
           Interpreters::SplitClustering.remove_empty_routes(result)
 
-          byebug if service_vrp[:vrp][:services].size != result[:routes].flat_map{ |r| r[:activities].map{ |a| a[:service_id] } }.compact.size + result[:unassigned].map{ |u| u[:service_id] }.size
+          byebug if service_vrp[:vrp][:services].size != result[:routes].flat_map{ |r| r[:activities].map{ |a| a[:service_id] } }.compact.size + result[:unassigned].map{ |u| u[:service_id] }.size + ramaining_empties_or_fills.size
           puts "dicho - level(#{service_vrp[:level]}) B unassigned rate #{result[:unassigned].size}/#{service_vrp[:vrp].services.size}: #{(result[:unassigned].size.to_f / service_vrp[:vrp].services.size * 100).round(1)}%"
 
           result = end_stage_insert_unassigned(service_vrp, result, job)
-          byebug if service_vrp[:vrp][:services].size != result[:routes].flat_map{ |r| r[:activities].map{ |a| a[:service_id] } }.compact.size + result[:unassigned].map{ |u| u[:service_id] }.size
+          byebug if service_vrp[:vrp][:services].size != result[:routes].flat_map{ |r| r[:activities].map{ |a| a[:service_id] } }.compact.size + result[:unassigned].map{ |u| u[:service_id] }.size + ramaining_empties_or_fills.size
           Interpreters::SplitClustering.remove_empty_routes(result)
-          byebug if service_vrp[:vrp][:services].size != result[:routes].flat_map{ |r| r[:activities].map{ |a| a[:service_id] } }.compact.size + result[:unassigned].map{ |u| u[:service_id] }.size
+          byebug if service_vrp[:vrp][:services].size != result[:routes].flat_map{ |r| r[:activities].map{ |a| a[:service_id] } }.compact.size + result[:unassigned].map{ |u| u[:service_id] }.size + ramaining_empties_or_fills.size
           if service_vrp[:level].zero?
             # Remove vehicles which are half empty
             Interpreters::SplitClustering.remove_empty_routes(result)
