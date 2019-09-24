@@ -150,6 +150,7 @@ module OptimizerWrapper
 
   def self.solve(services_vrps, job = nil, block = nil)
     unfeasible_services = []
+    services_to_reinject = []
 
     cluster_reference = 0
     real_result = join_independent_vrps(services_vrps, block) { |service, vrp, block|
@@ -187,7 +188,6 @@ module OptimizerWrapper
           }
         else
           puts "Solving #{cluster_reference + 1}/#{services_vrps.size}"
-          services_to_reinject = []
           sub_unfeasible_services = config[:services][service].detect_unfeasible_services(vrp)
 
           vrp.compute_matrix(&block)

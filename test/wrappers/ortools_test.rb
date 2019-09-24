@@ -6112,4 +6112,68 @@ class Wrappers::OrtoolsTest < Minitest::Test
     assert result
     assert result[:cost].zero?
   end
+
+  def test_reinject_unfeasible_services
+    problem = {
+      matrices: [{
+        id: 'matrix_0',
+        time: [
+          [0, 15, 1],
+          [15, 0, 4],
+          [1, 4, 0]
+        ]
+      }],
+      points: [{
+        id: 'point_0',
+        matrix_index: 0
+      }, {
+        id: 'point_1',
+        matrix_index: 1
+      }, {
+        id: 'point_2',
+        matrix_index: 2
+      }],
+      vehicles: [{
+        id: 'vehicle_1',
+        start_point_id: 'point_0',
+        end_point_id: 'point_0',
+        matrix_id: 'matrix_0',
+        timewindow: {
+          start: 0,
+          end: 10
+        }
+      }],
+      services: [{
+        id: 'service_1',
+        activity: {
+          point_id: 'point_1',
+          late_multiplier: 0,
+          timewindows: [{
+            start: 0,
+            end: 2,
+          }]
+        }
+      }, {
+        id: 'service_2',
+        activity: {
+          point_id: 'point_2',
+          late_multiplier: 0,
+          timewindows: [{
+            start: 0,
+            end: 6,
+          }]
+        }
+      }],
+      configuration: {
+        resolution: {
+          duration: 10,
+        }
+      }
+    }
+    vrp = Models::Vrp.create(problem)
+    check_vrp = Marshal.load(Marshal.dump(vrp))
+    result = OptimizerWrapper.wrapper_vrp('ortools', { services: { vrp: [:ortools] }}, vrp, nil)
+    assert result
+    assert_equal check_vrp.services.size, vrp.services.size
+  end
 end
