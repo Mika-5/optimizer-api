@@ -353,6 +353,9 @@ module Interpreters
     def self.split_balanced_kmeans(service_vrp, nb_clusters, options = {}, &block)
       default_options = { max_iterations: 300, restarts: 50, cut_symbol: :duration }
       options = default_options.merge(options)
+      empties_or_fills = (service_vrp[:vrp].services.select{ |service| service.quantities.any?(&:fill) } +
+                         service_vrp[:vrp].services.select{ |service| service.quantities.any?(&:empty) }).uniq
+      service_vrp[:vrp].services -= empties_or_fills
       vrp = service_vrp[:vrp]
       # Split using balanced kmeans
       if vrp.services.all?{ |service| service[:activity] } && nb_clusters > 1
@@ -384,6 +387,7 @@ module Interpreters
             linked_objects[i[2]]
           }
         }
+        service_vrp[:vrp].services += empties_or_fills
         puts 'Balanced K-Means : split ' + data_items.size.to_s + ' into ' + clusters.map{ |c| "#{c.data_items.size}(#{c.data_items.map{ |i| i[3][options[:cut_symbol]] || 0 }.inject(0, :+) })" }.join(' & ')
         cluster_vehicles = assign_vehicle_to_clusters(centroid_caracteristics, vrp.vehicles, vrp.points, clusters, options[:entity]) if options[:entity] == 'work_day' || options[:entity] == 'vehicle'
         result_items.collect.with_index{ |result_item, result_index|
