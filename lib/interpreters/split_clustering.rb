@@ -170,17 +170,22 @@ module Interpreters
           service: service_vrp[:service]
         }
         sub_vrp.services += empties_or_fills
-        sub_vrp.points += empties_or_fills.map{ |empti_of_fill| vrp.points.find{ |point| empti_of_fill.activity.point.id == point.id }}
+        sub_vrp.points += empties_or_fills.map{ |empti_of_fill| vrp.points.find{ |point| empti_of_fill.activity.point.id == point.id } }
         sub_vrp.vehicles.select!{ |vehicle| available_vehicle_ids.include?(vehicle.id) }
         sub_result = OptimizerWrapper.define_process([sub_problem], job, &block)
         remove_poor_routes(sub_vrp, sub_result)
-        raise 'Incorrect activities count' if sub_problem[:vrp][:services].size != sub_result[:routes].flat_map{ |r| r[:activities].map{ |a| a[:service_id] } }.compact.size + sub_result[:unassigned].map{ |u| u[:service_id] }.size
+        raise 'Incorrect activities count' if sub_problem[:vrp][:services].size != sub_result[:routes].flat_map{ |r| r[:activities].map{ |a| a[:service_id] } }.compact.size + sub_result[:unassigned].map{ |u| u[:service_id] }.compact.size
         available_vehicle_ids.delete_if{ |id| sub_result[:routes].collect{ |route| route[:vehicle_id] }.include?(id) }
-        empties_or_fills_used = remove_used_empties_and_refills(sub_vrp, sub_result).compact
+        empties_or_fills_used = remove_used_empties_and_refills(empties_or_fills, sub_result).compact
         empties_or_fills -= empties_or_fills_used
-        sub_problem[:vrp].services -= empties_or_fills_used
         empties_or_fills_remaining = empties_or_fills - empties_or_fills_used
-        sub_result[:unassigned].delete_if{ |activity| empties_or_fills_remaining.map{ |service| service.id }.include?(activity[:service_id]) } if index.zero?
+        sub_problem[:vrp].services -= empties_or_fills_remaining
+        if index.zero?
+          sub_result[:unassigned].delete_if{ |activity| empties_or_fills_remaining.map{ |service| service.id }.include?(activity[:service_id]) }
+        else
+          sub_problem[:vrp].services += empties_or_fills
+        end
+
         result = Helper.merge_results([result, sub_result])
       }
       vrp.services += empties_or_fills
@@ -494,6 +499,14 @@ module Interpreters
       vehicle_list
     end
 
+    def self.remove_used_empties_and_refills(empties_or_fills, result)
+      activities_ids = result[:routes].flat_map{ |r| r[:activities].map{ |a| a[:service_id] } }.compact
+
+      empties_or_fills.map{ |empty_or_fill|
+        empty_or_fill if activities_ids.include?(empty_or_fill.id)
+      }
+    end
+
     module ClassMethods
       private
 
@@ -770,16 +783,6 @@ module Interpreters
           graph[node][:unit_metrics][symbol] -= value_to_remove
           remove_from_upper(graph, graph[node][:parent], symbol, value_to_remove)
         end
-      end
-
-      def remove_used_empties_and_refills(vrp, result)
-        result[:routes].collect{ |route|
-          current_service = nil
-          route[:activities].select{ |activity| activity[:service_id] }.collect{ |activity|
-            current_service = vrp.services.find{ |service| service[:id] == activity[:service_id] }
-            current_service if current_service && current_service.quantities.any?(&:fill) || current_service.quantities.any?(&:empty)
-          }
-        }.flatten
       end
 
       def tree_leafs(graph, node)
