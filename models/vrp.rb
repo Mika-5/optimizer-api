@@ -36,10 +36,10 @@ module Models
     field :preprocessing_first_solution_strategy, default: nil
     has_many :preprocessing_partitions, class_name: 'Models::Partition'
 
-    field :resolution_dicho_level_coeff, default: 1.1
+    field :resolution_dicho_level_coeff, default: 1.5
     field :resolution_dicho_division_vec_limit, default: 3
-    field :resolution_angle, default: 38
-    field :resolution_div_average_service, default: 0.6
+    field :resolution_angle, default: 40
+    field :resolution_div_average_service, default: 0.4
     field :resolution_duration, default: nil
     field :resolution_total_duration, default: nil
     field :resolution_iterations, default: nil
@@ -281,6 +281,7 @@ module Models
         total_service_time = services.map{ |service| service[:activity][:duration].to_i }.reduce(:+)
 
         # TODO: It assumes there is only one uniq location for all vehicle starts and ends
+        approximate_number_of_vehicles_used = 1
         depot = vehicles.collect(&:start_point).compact[0]
         approx_depot_time_correction = if depot.nil?
                                          0
@@ -290,7 +291,7 @@ module Models
 
                                          approximate_number_of_vehicles_used = ((total_service_time.to_f + total_travel_time) / average_vehicles_work_time).ceil
 
-                                         approximate_number_of_vehicles_used * 2 * Helper.flying_distance(average_loc, [depot.location.lat, depot.location.lon])
+                                         # approximate_number_of_vehicles_used * 2 * Helper.flying_distance(average_loc, [depot.location.lat, depot.location.lon])
 
                                          # TODO: Here we use flying_distance for approx_depot_time_correction; however, this value is in terms of meters
                                          # instead of seconds. Still since all dicho paramters    -- i.e.,  resolution_angle, resolution_div_average_service, etc. --
@@ -298,10 +299,10 @@ module Models
                                          # We need to calculate new parameters after correcting the bug.
                                          #
 
-                                         # point_closest_to_center = points.min_by{ |point| Helper::flying_distance(average_loc, [point.location.lat, point.location.lon]) }
-                                         # ave_dist_to_depot = matrices[0][:time][point_closest_to_center.matrix_index][depot.matrix_index]
-                                         # ave_dist_from_depot = matrices[0][:time][depot.matrix_index][point_closest_to_center.matrix_index]
-                                         # approximate_number_of_vehicles_used * (ave_dist_to_depot + ave_dist_from_depot)
+                                         point_closest_to_center = points.min_by{ |point| Helper::flying_distance(average_loc, [point.location.lat, point.location.lon]) }
+                                         ave_dist_to_depot = matrices[0][:time][point_closest_to_center.matrix_index][depot.matrix_index]
+                                         ave_dist_from_depot = matrices[0][:time][depot.matrix_index][point_closest_to_center.matrix_index]
+                                         approximate_number_of_vehicles_used * (ave_dist_to_depot + ave_dist_from_depot)
                                        end
 
         total_time_load = total_service_time + total_travel_time + approx_depot_time_correction
@@ -317,6 +318,10 @@ module Models
 
         services.each{ |service|
           service.exclusion_cost = (coeff_variable_cost * (max_fixed_cost / exclusion_rate * service[:activity][:duration] / average_service_load) + coeff_uniform_cost * (max_fixed_cost / exclusion_rate)).ceil
+        }
+        total_exclusion_cost = services.map(&:exclusion_cost).sum
+        vehicles.each{ |vehicle|
+          vehicle.cost_fixed = [total_exclusion_cost / approximate_number_of_vehicles_used, 1000000].min
         }
       when :distance
         raise 'Distance based exclusion cost calculation is not ready'
